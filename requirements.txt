@@ -1,0 +1,47 @@
+# These PyPI wheels (opencv-python, numpy, mediapipe, PyQt6) are all built for a generic
+# x86-64 CPU baseline, not CPU-specific instruction sets like AVX2/AVX-512 — this is the
+# default for PyPI wheels and is what keeps the compiled app usable on older/weaker CPUs
+# too, not just the machine it was built on. Nothing to change here; noted so a future
+# edit doesn't accidentally swap one of these for an optimized/GPU variant that would
+# narrow compatibility.
+sounddevice
+google-genai
+google-generativeai
+pillow
+requests
+python-kasa
+beautifulsoup4
+duckduckgo-search
+playwright          
+pyautogui
+pyperclip
+pygetwindow       
+opencv-python
+numpy
+mediapipe
+mss
+Pillow
+psutil
+comtypes
+pycaw               
+instagrapi
+win10toast          
+send2trash
+youtube-transcript-api
+pywinauto
+pyaudio
+openpyxl
+python-pptx
+python-docx
+reportlab
+discord.py
+fastapi
+uvicorn[standard]
+cryptography
+qrcode[pil]
+python-multipart
+PyQt6
+PyQt6-WebEngine
+edge-tts
+matplotlib
+speedtest-cli

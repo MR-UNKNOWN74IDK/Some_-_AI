@@ -1,0 +1,89 @@
+# Environments
+.venv/
+venv/
+ENV/
+env/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+
+# Node dependencies & builds
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Installer build artifacts & large binaries (>100MB)
+installer/build_setup/
+installer/dist/
+installer/build/
+
+# Android build outputs & IDE
+tools/
+jarvis-mobile-android/
+actions/android/
+jarvis-connect-android/.gradle/
+jarvis-connect-android/**/build/
+jarvis-connect-android/local.properties
+jarvis-connect-android/.idea/
+jarvis-connect-android/.cxx/
+*.apk
+*.aab
+
+# Scratch & temporary logs
+scratch/
+*.log
+.playwright-mcp/
+reengineered_apps/
+.coverage
+htmlcov/
+.vscode/
+.idea/
+
+# Browser & runtime cache / backups
+config/ig_browser_profile/
+config/patch_backups/
+config/ppt_template_cache/
+config/.desktop_shortcut_created
+
+# Credentials & Sensitive Configurations
+.env
+.env.*
+*.env
+config/api_keys.json
+config/email_credentials.json
+config/ig_session.json
+config/spotify-config.json
+*spotify-config.json
+config/*.key
+config/.*key
+config/*.sqlite3
+*.sqlite3
+
+# Personal Data & Local Runtime History
+config/identity.json
+config/device_location_cache.json
+config/learned_rules.json
+config/organizer_history.json
+config/patch_history.json
+config/jarvis_connect.json
+config/jarvis_connect/devices.json
+memory/calendar_events.json
+memory/long_term.json
+memory/nutrition_log.json
+ig_session.json
+api_keys.json
+email_credentials.json
+Jarvis_Images/
+
+build/
+dist/
+actions/spotify_mcp_server/build/
+gradle-8.7-bin.zip
+setup_android_sdk.ps1
+build_apk.ps1
+process_logo.py

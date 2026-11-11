@@ -1,0 +1,71 @@
+# Builds Jarvis Ultron on GitHub's own cloud Windows machine instead of yours.
+# This sidesteps Smart App Control entirely: it's a fresh, ephemeral Windows VM
+# that GitHub tears down after the job, not your PC, so nothing about your
+# machine's security settings is touched or needs to change.
+#
+# HOW TO USE
+#   1. Push this whole project to a PRIVATE GitHub repository (Settings -> keep
+#      it Private: this is your personal fork, the original LICENSE does not
+#      allow redistributing it publicly).
+#   2. Go to the repo's "Actions" tab -> "Build Jarvis Ultron" -> "Run workflow".
+#      (Or it runs automatically on every push, if you leave the "on: push"
+#      trigger below enabled.)
+#   3. Wait for it to finish (visible progress, usually 30-90 minutes).
+#   4. Open the finished run -> scroll to "Artifacts" -> download
+#      "JarvisUltron-Setup" -> that's your installer.
+#
+# No API keys are ever involved in this: the vault is created empty on first
+# run on whichever machine actually launches the app, never baked into the
+# build. Nothing secret gets uploaded to GitHub.
+name: Build Jarvis Ultron
+
+on:
+  workflow_dispatch:      # manual "Run workflow" button
+  push:
+    branches: [main, master]
+
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 180
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Inno Setup (for the final installer step)
+        shell: powershell
+        run: choco install innosetup -y --no-progress
+
+      - name: Create venv + install dependencies
+        shell: bash
+        run: |
+          python -m venv .venv
+          .venv/Scripts/python.exe -m pip install --upgrade pip wheel -q
+          .venv/Scripts/python.exe -m pip install -r requirements.txt -q
+          .venv/Scripts/python.exe -m pip install pyinstaller cryptography keyring fastapi "uvicorn[standard]" pytest -q
+
+      - name: Run tests
+        shell: bash
+        run: ./jarvis.sh test
+
+      - name: Compile + package (native build -> installer)
+        shell: bash
+        env:
+          ISCC: "C:/Program Files (x86)/Inno Setup 6/ISCC.exe"
+        run: ./jarvis.sh build --no-skill-runtime
+        # --no-skill-runtime: skips downloading+staging the embedded Python used for
+        # skill forging, to keep the CI build well inside the time limit. Drop this
+        # flag if you specifically need skill forging to work in the shipped build;
+        # it will just take longer here.
+
+      - name: Upload the installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: JarvisUltron-Setup
+          path: dist/JarvisUltron-Setup.exe
+          if-no-files-found: error
