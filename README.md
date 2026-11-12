@@ -1,9 +1,5 @@
 # ⚡ Jarvis Evo — Autonomous Desktop Operating Intelligence
 
-<div align="center">
-
-<img src="assets/jarvis_logo.png" alt="Jarvis Evo Logo" width="220" />
-
 ### *The Self-Evolving, Multimodal Personal AI Desktop Environment*
 
 [![Python](https://img.shields.io/badge/Python-3.11%20%7C%203.12-blue?logo=python&logoColor=white)](https://python.org)
@@ -196,7 +192,7 @@ This project is licensed under the **Jarvis Evo Source-Available Personal Use Li
 - 🚫 **Strictly Prohibited (No Distribution):** You may **NOT** distribute, redistribute, re-upload, mirror, share, transmit, sublicense, or publish this software, repository, binaries, or derivative works anywhere (including other Git hosts, public repositories, or cloud platforms). The only official distribution source is this repository.
 - 🚫 **Strictly Prohibited (No Commercial Use):** You may **NOT** sell, rent, monetize, bundle, commercialize, or host this software as a paid SaaS/cloud service.
 
-For full terms and legal conditions, see the [LICENSE](LICENSE) file. For commercial licensing inquiries, reach out via [Discord](https://discord.gg/gEYmJKKtq3).
+For full terms and legal conditions, see the [LICENSE](LICENSE) file. For commercial licensing inquiries, reach out via [Discord]().
 
 <div align="center">
 <b>Jarvis Evo</b> • Built with intelligence, precision, and autonomy.

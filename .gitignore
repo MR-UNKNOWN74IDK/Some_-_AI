@@ -80,7 +80,12 @@ api_keys.json
 email_credentials.json
 Jarvis_Images/
 
-build/
+# NOTE: build/ holds hand-written scripts (lib.sh, build_native.sh, make_installer.sh, ...)
+# that must be committed — only build/work/ (actual transient compiler/Nuitka output) is
+# ignored. A bare "build/" here previously silently excluded those scripts from git
+# entirely, which is exactly what broke a GitHub Actions run with "No such file or
+# directory" for build/lib.sh despite it existing locally.
+build/work/
 dist/
 actions/spotify_mcp_server/build/
 gradle-8.7-bin.zip
