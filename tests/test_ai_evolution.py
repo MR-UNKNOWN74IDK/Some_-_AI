@@ -11,6 +11,7 @@ Unit tests for Jarvis's Advanced Intelligence Leap:
 
 import time
 from pathlib import Path
+from datetime import datetime
 from unittest.mock import MagicMock, patch
 import pytest
 
@@ -152,17 +153,35 @@ def test_anticipatory_watcher_cycle():
     delivered_nudges = []
     watcher.set_nudge_callback(lambda msg, cat: delivered_nudges.append((msg, cat)))
 
-    with patch("psutil.virtual_memory", return_value=mock_mem):
-        with patch("core.mem_reduct.MemReductEngine.clean_ram", return_value={"freed_mb": 1200.0}):
-            res = watcher.run_inspection_cycle()
-            assert len(delivered_nudges) == 1
-            assert delivered_nudges[0][1] == "memory"
-            assert "1200.0 MB" in delivered_nudges[0][0]
+    # run_inspection_cycle() also runs two other real-world checks that this test
+    # doesn't intend to exercise, and neither was mocked before: a "working late at
+    # night" nudge driven by the real wall clock (23:30-04:00, see
+    # core/anticipatory_watcher.py Section 3), and a low-disk-space nudge driven by
+    # the test machine's actual free disk space (Section 4). Both made this test
+    # flaky depending on what time it happened to run and how full the disk
+    # happened to be — this is how it was found: it failed in CI on a machine with
+    # under ~50% free disk. Both are pinned to safe values so only the memory path
+    # under test can fire a nudge.
+    mock_disk = {"drive": "C:\\", "percent_used": 40.0, "free_gb": 500.0}
+    with patch("core.anticipatory_watcher.datetime") as mock_dt:
+        mock_dt.now.return_value = datetime(2026, 1, 1, 14, 0, 0)  # 2:00 PM — never "late night"
+        with patch("psutil.virtual_memory", return_value=mock_mem):
+            with patch("core.mem_reduct.MemReductEngine.clean_ram", return_value={"freed_mb": 1200.0}):
+                with patch("core.space_cleaner.get_space_cleaner") as mock_space:
+                    mock_space.return_value.get_disk_telemetry.return_value = mock_disk
+                    res = watcher.run_inspection_cycle()
+                    assert len(delivered_nudges) == 1
+                    assert delivered_nudges[0][1] == "memory"
+                    assert "1200.0 MB" in delivered_nudges[0][0]
 
     # Cooldown suppresses immediate duplicate nudge
-    with patch("psutil.virtual_memory", return_value=mock_mem):
-        watcher.run_inspection_cycle()
-        assert len(delivered_nudges) == 1
+    with patch("core.anticipatory_watcher.datetime") as mock_dt2:
+        mock_dt2.now.return_value = datetime(2026, 1, 1, 14, 0, 0)
+        with patch("psutil.virtual_memory", return_value=mock_mem):
+            with patch("core.space_cleaner.get_space_cleaner") as mock_space2:
+                mock_space2.return_value.get_disk_telemetry.return_value = mock_disk
+                watcher.run_inspection_cycle()
+                assert len(delivered_nudges) == 1
 
 
 # =========================================================================
