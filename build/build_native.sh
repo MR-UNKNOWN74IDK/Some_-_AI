@@ -20,10 +20,16 @@ info "3/3 compiling to native code (30-90 min the first time, faster after)"
 # --mingw64 (not MSVC) statically links the C/C++ runtime into the exe, so the target
 # machine does not need a Visual C++ Redistributable installed — one less way a fresh
 # Windows 11 machine without dev tools could fail to launch it.
+# --low-memory serializes the heaviest C-compilation steps instead of running them in
+# parallel across all CPU cores. This costs some build time, but google-genai's generated
+# C file (module.google.genai.types.c) is large enough that compiling it alongside other
+# heavy files at once has exhausted RAM on GitHub's free-tier runners (seen as
+# "cc1.exe: out of memory" / "std::bad_alloc" from gcc) — this is Nuitka's own documented
+# fix for that failure mode, not a workaround for anything wrong in the app's code.
 # Windows metadata below is cosmetic (Properties -> Details tab) but also makes the exe
 # look like a normal signed-looking app rather than an anonymous binary to SmartScreen/AV
 # heuristics, which somewhat reduces (never eliminates) false-flagging on another PC.
-"$vp" -m nuitka --standalone --assume-yes-for-downloads --mingw64 \
+"$vp" -m nuitka --standalone --assume-yes-for-downloads --mingw64 --low-memory \
   --enable-plugin=pyqt6 --windows-console-mode=disable \
   --windows-icon-from-ico=assets/jarvis_logo.ico \
   --company-name="Jarvis Ultron (private build)" --product-name="Jarvis Ultron" \

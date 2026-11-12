@@ -27,7 +27,7 @@ on:
 jobs:
   build:
     runs-on: windows-latest
-    timeout-minutes: 180
+    timeout-minutes: 300   # --low-memory serializes heavy compilation steps, making this run longer
     steps:
       - name: Check out the repo
         uses: actions/checkout@v4
@@ -57,7 +57,7 @@ jobs:
         shell: bash
         env:
           ISCC: "C:/Program Files (x86)/Inno Setup 6/ISCC.exe"
-        run: ./jarvis.sh build --no-skill-runtime
+        run: ./jarvis.sh build
         # --no-skill-runtime: skips downloading+staging the embedded Python used for
         # skill forging, to keep the CI build well inside the time limit. Drop this
         # flag if you specifically need skill forging to work in the shipped build;
