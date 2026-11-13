@@ -1,4 +1,5 @@
 import os
+import sys
 from pathlib import Path
 import pytest
 from core.globe_window import GlobeBridge
@@ -39,7 +40,15 @@ def test_chromium_gpu_flags():
     assert "--ignore-gpu-blocklist" in flags
     assert "--disable-frame-rate-limit" in flags
     assert "--disable-gpu-vsync" in flags
-    assert "--use-angle=d3d11" in flags
+    # --use-angle=d3d11 (Direct3D 11) is only added on Windows — see core/globe_window.py,
+    # which correctly branches on sys.platform since D3D11 doesn't exist on Linux/macOS.
+    # This is intentional platform-specific behavior, not a bug: it was failing here only
+    # because the old assertion expected it unconditionally, so it only "passed" by luck
+    # on whichever OS happened to run it, rather than reflecting what the code promises.
+    if sys.platform == "win32":
+        assert "--use-angle=d3d11" in flags
+    else:
+        assert "--use-angle=d3d11" not in flags
 
 def test_globe_bridge_signals():
     bridge = GlobeBridge()

@@ -5,7 +5,7 @@ Tests router inspection, network scanning, device classification, Wake-on-LAN,
 ping probing, internet health telemetry, action plugins, dynamic features, and Tier 1 intent reflexes.
 """
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, mock_open, patch
 from pathlib import Path
 import json
 import socket
@@ -155,16 +155,23 @@ def test_inspect_router_structure():
     """Verifies router inspection returns valid schema."""
     sentinel = get_net_sentinel()
 
-    with patch.object(NetSentinel, "get_local_network_info", return_value={
-        "host_ip": "192.168.0.112",
-        "gateway_ip": "192.168.0.1",
-        "subnet_prefix": "192.168.0.",
-        "hostname": "TEST-PC"
-    }):
-        with patch.object(sentinel, "scan_device_ports", return_value={"open_ports": [80, 22, 53]}):
-            with patch.object(sentinel, "ping_target", return_value={"success": True, "avg_latency_ms": 1.5}):
-                with patch("subprocess.check_output", return_value="192.168.0.1  28-87-ba-d0-ec-ba  dynamic"):
-                    res = sentinel.inspect_router()
+    # get_arp_table() (core/net_sentinel.py) branches on sys.platform and only calls
+    # the mocked subprocess.check_output on the win32 branch ("arp -a"); on other
+    # platforms it reads the real /proc/net/arp or runs "arp -an" instead, so without
+    # pinning the platform this test silently depended on whatever OS happened to run
+    # it, and read this machine's actual (irrelevant) ARP table on anything but
+    # Windows. Pinning it makes the test deterministic everywhere, not just on Windows.
+    with patch("sys.platform", "win32"):
+        with patch.object(NetSentinel, "get_local_network_info", return_value={
+            "host_ip": "192.168.0.112",
+            "gateway_ip": "192.168.0.1",
+            "subnet_prefix": "192.168.0.",
+            "hostname": "TEST-PC"
+        }):
+            with patch.object(sentinel, "scan_device_ports", return_value={"open_ports": [80, 22, 53]}):
+                with patch.object(sentinel, "ping_target", return_value={"success": True, "avg_latency_ms": 1.5}):
+                    with patch("subprocess.check_output", return_value="192.168.0.1  28-87-ba-d0-ec-ba  dynamic"):
+                        res = sentinel.inspect_router()
                     assert res["success"] is True
                     assert res["gateway_ip"] == "192.168.0.1"
                     assert res["mac_address"] == "28-87-BA-D0-EC-BA"
@@ -477,8 +484,14 @@ eth0	00000000	0101A8C0	0003	0	0	100	00000000	0	0	0
             mock_s = MagicMock()
             mock_s.getsockname.return_value = ("192.168.1.120", 0)
             mock_sock.return_value.__enter__.return_value = mock_s
-            with patch("pathlib.Path.exists", return_value=True):
-                with patch("pathlib.Path.read_text", return_value=linux_route):
+            # get_local_network_info() reads /proc/net/route with plain os.path.exists() +
+            # open() (core/net_sentinel.py Section B), not pathlib — patching
+            # pathlib.Path.exists/read_text here never touched the real call, so this was
+            # silently reading the TEST MACHINE's real routing table the whole time rather
+            # than the fake one above (which is why the result varied depending on what
+            # environment ran it). Patching what the code actually calls instead.
+            with patch("os.path.exists", return_value=True):
+                with patch("builtins.open", mock_open(read_data=linux_route)):
                     info = NetSentinel.get_local_network_info()
                     assert info["gateway_ip"] == "192.168.1.1"
                     assert info["host_ip"] == "192.168.1.120"

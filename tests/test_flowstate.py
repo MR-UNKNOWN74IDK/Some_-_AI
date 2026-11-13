@@ -37,15 +37,23 @@ def test_flowstate_manager_lifecycle(tmp_path: Path):
     manager.storage_file = tmp_path / "flowstate_test.json"
     manager._ensure_storage()
 
+    # restore_workspace() only restores a VS Code workspace whose path actually exists on
+    # disk (core/flowstate.py, Section 3) — correct behavior, since launching VS Code into
+    # a nonexistent folder would be wrong. The old fake path "D:\\code\\demo" never existed
+    # anywhere, including on a real Windows machine, so this wasn't platform-specific: the
+    # test just never created a real folder to point at. Using a real one here instead.
+    vscode_dir = tmp_path / "demo_project"
+    vscode_dir.mkdir()
+
     # 1. Snapshot creation
     with patch.object(manager, "extract_chrome_tabs", return_value=["https://github.com/project"]):
         with patch.object(manager, "extract_edge_tabs", return_value=[]):
-            with patch.object(manager, "extract_vscode_workspaces", return_value=["D:\\code\\demo"]):
+            with patch.object(manager, "extract_vscode_workspaces", return_value=[str(vscode_dir)]):
                 res = manager.snapshot_workspace("Alpha Workspace")
                 assert res["success"] is True
                 assert res["name"] == "Alpha Workspace"
                 assert res["chrome_tabs_count"] == 1
-                assert "D:\\code\\demo" in res["vscode_workspaces"]
+                assert str(vscode_dir) in res["vscode_workspaces"]
 
     # 2. List workspaces
     ws_list = manager.list_workspaces()
