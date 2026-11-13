@@ -15,6 +15,17 @@ def test_sensorium_power_transitions():
     sensorium = PassiveSensorium(poll_interval=100.0)
     alerts = []
     sensorium.register_interjection_handler(lambda at, meta: alerts.append((at, meta)))
+    # _evaluate_heuristics() also independently fires an unrelated "good morning" nudge
+    # whenever BOTH the real wall clock reads 6am-11am AND real OS idle time (also read
+    # for real at construction, above) happens to read under 3 seconds — same unmocked-
+    # real-world-check pattern as the anticipatory-watcher bug fixed earlier, just in a
+    # different module this test never accounted for. On a CI runner with no human
+    # touching the keyboard, idle time apparently still read near zero (likely a fallback
+    # when the OS idle-time API has nothing real to report), which combined with the
+    # runner's clock reading a morning hour is exactly what caused the test to intermittently
+    # see 2 alerts instead of 1. Pinning the actual precondition (idle time), not the time
+    # of day, since that is what the code really checks and it is not timezone-dependent.
+    sensorium.user_idle_seconds = 999.0
 
     # Initial state: on AC power
     sensorium._prev_power_plugged = True

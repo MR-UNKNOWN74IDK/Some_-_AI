@@ -20,16 +20,21 @@ info "3/3 compiling to native code (30-90 min the first time, faster after)"
 # --mingw64 (not MSVC) statically links the C/C++ runtime into the exe, so the target
 # machine does not need a Visual C++ Redistributable installed — one less way a fresh
 # Windows 11 machine without dev tools could fail to launch it.
-# --low-memory serializes the heaviest C-compilation steps instead of running them in
-# parallel across all CPU cores. This costs some build time, but google-genai's generated
-# C file (module.google.genai.types.c) is large enough that compiling it alongside other
-# heavy files at once has exhausted RAM on GitHub's free-tier runners (seen as
-# "cc1.exe: out of memory" / "std::bad_alloc" from gcc) — this is Nuitka's own documented
-# fix for that failure mode, not a workaround for anything wrong in the app's code.
+# --low-memory alone (serializing compilation instead of running it across all CPU cores)
+# was NOT enough: google-genai's auto-generated C file (module.google.genai.types.c) is
+# large enough to exhaust RAM even compiled by itself, with --low-memory already applied
+# (confirmed from an actual failed run: same "cc1.exe: out of memory" on the same file).
+# --lto=no additionally turns off link-time whole-program optimization, which is by far the
+# most memory-hungry part of compiling a single large file like this one; --jobs=1 pins
+# parallelism to one file at a time explicitly, rather than relying on --low-memory's
+# implicit choice of how many to run at once. Together these should fit the free-tier
+# runner's RAM. None of this changes what the compiled app does at runtime, only how much
+# memory compiling it needs; it costs real build time, which is why the workflow's timeout
+# was raised to match.
 # Windows metadata below is cosmetic (Properties -> Details tab) but also makes the exe
 # look like a normal signed-looking app rather than an anonymous binary to SmartScreen/AV
 # heuristics, which somewhat reduces (never eliminates) false-flagging on another PC.
-"$vp" -m nuitka --standalone --assume-yes-for-downloads --mingw64 --low-memory \
+"$vp" -m nuitka --standalone --assume-yes-for-downloads --mingw64 --low-memory --lto=no --jobs=1 \
   --enable-plugin=pyqt6 --windows-console-mode=disable \
   --windows-icon-from-ico=assets/jarvis_logo.ico \
   --company-name="Jarvis Ultron (private build)" --product-name="Jarvis Ultron" \

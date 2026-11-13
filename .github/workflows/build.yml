@@ -27,13 +27,13 @@ on:
 jobs:
   build:
     runs-on: windows-latest
-    timeout-minutes: 300   # --low-memory serializes heavy compilation steps, making this run longer
+    timeout-minutes: 330   # --jobs=1 --lto=no serializes everything fully; slower but fits the runner's RAM
     steps:
       - name: Check out the repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up Python 3.12
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.12"
 
