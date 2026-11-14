@@ -36,7 +36,10 @@ Also disabled: auto-update from the original author's GitHub.
 native machine code with Nuitka (no `.py`/`.pyc` is shipped — there is no source to open, only the
 same kind of binary a C program would produce), stages the skill-forging runtime, and wraps the
 result into **one** installer with Inno Setup 6 (https://jrsoftware.org/isdl.php — install that
-first). Needs a C compiler too; Nuitka downloads MinGW64 itself the first time.
+first). Compiles with MSVC (Visual Studio's compiler), switched from MinGW after MinGW kept
+running out of memory on one specific auto-generated file (google-genai's types.py) even at
+its lowest-memory settings; GitHub's windows-latest runners have MSVC preinstalled, nothing
+extra to download for that part.
 
 Hand that one file, `JarvisUltron-Setup.exe`, to the Windows user. It is the whole deliverable:
 double-clicking it creates the install folder under `%LocalAppData%\JarvisUltron`, copies every
@@ -51,10 +54,13 @@ What stays as plain text on purpose, and only this:
 
 Everything else — the app itself — is compiled, and API keys are in the encrypted vault, never a file.
 
-The build also strips debug symbol tables from every compiled `.exe`/`.dll`/`.pyd` automatically
-(`build/strip_symbols.sh`, using the `strip` tool from Nuitka's own MinGW toolchain). This removes
-symbol tables, not plain-text strings — it won't scrub a build-path string baked into the binary as
-data; build from a path that doesn't contain your Windows username if that matters to you.
+`build/strip_symbols.sh` strips debug symbol tables when building with the MinGW fallback engine
+(see `--engine=pyinstaller` below). With the current MSVC engine this step is normally a no-op —
+not a failure: MSVC keeps debug symbols in separate `.pdb` files rather than embedding them in the
+exe/dll, and Nuitka's default release build doesn't generate `.pdb` files for a standalone build in
+the first place, so there's typically nothing embedded to strip either way. Either way, this never
+scrubs plain-text strings baked into the binary as data — it won't remove a build-path string;
+build from a path that doesn't contain your Windows username if that matters to you.
 
 Flags: `--no-skill-runtime` skips the embedded Python (skill forging then unavailable);
 `--no-installer` stops after compiling, if you just want to inspect the compiled folder;
@@ -83,9 +89,13 @@ created empty on whichever machine later launches the app, never baked into the 
 ## Cross-machine compatibility (Windows 11 x86-64, and older)
 What's actually done to make the compiled exe run on a Windows machine other than the one
 that built it, and what's honestly not guaranteed:
-* **No Visual C++ Redistributable needed on the target machine.** The build uses MinGW
-  (`--mingw64`), not MSVC, which statically links the C/C++ runtime into the exe — one
-  common "exe won't start on a fresh PC" cause, avoided.
+* **Visual C++ Redistributable:** the build now uses MSVC (see above), which links the C++
+  runtime dynamically rather than statically, so the target machine needs the Redistributable
+  installed. `build/make_installer.sh` bundles it and installs it silently as part of Setup —
+  the end user doesn't have to do anything, but Windows will show one UAC elevation prompt
+  specifically for that step (genuinely required to install a system runtime), separate from
+  the rest of the installer, which runs without admin rights. Skipped automatically on a
+  machine that already has it, so this prompt won't reappear on every reinstall.
 * **Not CPU-specific.** The heavy native dependencies (OpenCV, NumPy, mediapipe, PyQt6) are
   installed from their standard PyPI wheels, which target a generic x86-64 baseline, not an
   AVX2/AVX-512-only build. This should mean it isn't limited to modern CPUs only — but I

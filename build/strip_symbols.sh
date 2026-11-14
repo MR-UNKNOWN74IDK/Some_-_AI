@@ -1,9 +1,12 @@
 #!/usr/bin/env bash
-# Strips debug symbol tables from the compiled exe/dll/pyd files using the
-# MinGW `strip` tool Nuitka already downloaded. Does NOT remove plain text
-# strings baked into the binary (e.g. a build-path string) — only a symbol
-# table. Safe to skip: if strip.exe can't be found, the build still succeeds,
-# just with whatever (default: none) debug info Nuitka put in.
+# Strips debug symbol tables from the compiled exe/dll/pyd files, IF building with the
+# MinGW engine (which uses the `strip` tool Nuitka downloads alongside it). With the MSVC
+# engine (the current default, see build_native.sh) this step is normally a no-op and
+# that's fine, not a failure: MSVC puts debug symbols in separate .pdb files rather than
+# embedding them in the exe/dll at all, and Nuitka's default release build doesn't
+# generate .pdb files for a standalone build in the first place — so there is typically
+# nothing embedded to strip either way. Does NOT remove plain text strings baked into the
+# binary (e.g. a build-path string) — only a symbol table, and only when one exists.
 set -uo pipefail
 source "$ROOT/build/lib.sh"
 dir="$1"
@@ -16,7 +19,7 @@ for base in "$LOCALAPPDATA/Nuitka/Nuitka/Cache" "$APPDATA/Nuitka/Nuitka" "$HOME/
   [ -n "$found" ] && { strip_exe="$found"; break; }
 done
 if [ -z "$strip_exe" ]; then
-  warn "strip.exe not found (MinGW toolchain may be in a different cache location) — skipping symbol strip"
+  info "no MinGW strip.exe found — expected with the MSVC engine (symbols aren't embedded in the first place), skipping"
   exit 0
 fi
 info "stripping debug symbols with $strip_exe"

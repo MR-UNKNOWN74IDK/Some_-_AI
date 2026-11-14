@@ -17,9 +17,14 @@ info "2/3 installing compiler toolchain (first run only)"
 out="build/work/native"
 rm -rf "$out"
 info "3/3 compiling to native code (30-90 min the first time, faster after)"
-# --mingw64 (not MSVC) statically links the C/C++ runtime into the exe, so the target
-# machine does not need a Visual C++ Redistributable installed — one less way a fresh
-# Windows 11 machine without dev tools could fail to launch it.
+# Switched from MinGW to MSVC (Visual Studio's own compiler, preinstalled on GitHub's
+# windows-latest runners) after MinGW kept running out of memory on one specific
+# auto-generated file (google-genai's types.py) even with --low-memory, --lto=no and
+# --jobs=1 all applied together — MSVC builds its internal representation of a large file
+# differently and does not hit the same wall. Trade-off: MSVC links the C++ runtime
+# dynamically rather than statically, so the target machine now needs the Visual C++
+# Redistributable installed — build/make_installer.sh bundles and silently installs it,
+# so this is handled automatically and nothing the end user has to do themselves.
 # --low-memory alone (serializing compilation instead of running it across all CPU cores)
 # was NOT enough: google-genai's auto-generated C file (module.google.genai.types.c) is
 # large enough to exhaust RAM even compiled by itself, with --low-memory already applied
@@ -34,7 +39,7 @@ info "3/3 compiling to native code (30-90 min the first time, faster after)"
 # Windows metadata below is cosmetic (Properties -> Details tab) but also makes the exe
 # look like a normal signed-looking app rather than an anonymous binary to SmartScreen/AV
 # heuristics, which somewhat reduces (never eliminates) false-flagging on another PC.
-"$vp" -m nuitka --standalone --assume-yes-for-downloads --mingw64 --low-memory --lto=no --jobs=1 \
+"$vp" -m nuitka --standalone --assume-yes-for-downloads --low-memory --lto=no --jobs=1 \
   --enable-plugin=pyqt6 --windows-console-mode=disable \
   --windows-icon-from-ico=assets/jarvis_logo.ico \
   --company-name="Jarvis Ultron (private build)" --product-name="Jarvis Ultron" \

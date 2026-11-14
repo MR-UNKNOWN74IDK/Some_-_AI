@@ -20,6 +20,21 @@ fi
 # Belt and suspenders: strip any stray doc markdown before packaging, keep SKILL.md (runtime data).
 find "$src" -iname "*.md" ! -path "$src/skills/*/SKILL.md" -delete 2>/dev/null || true
 
+# The build now uses MSVC (see build_native.sh), which links the C++ runtime dynamically
+# rather than statically, so the target machine needs the Visual C++ Redistributable.
+# Bundled here and installed silently so the end user never has to do anything — Windows
+# will show its own one-time elevation (UAC) prompt specifically for this step, since
+# installing a system runtime genuinely requires it, even though the rest of this
+# installer deliberately runs without admin rights (PrivilegesRequired=lowest below).
+# Cached in build/work so it's only downloaded once, not on every build.
+redist="$ROOT/build/work/vc_redist.x64.exe"
+mkdir -p "$ROOT/build/work"
+if [ ! -f "$redist" ]; then
+  info "downloading the VC++ Redistributable (one-time, ~25 MB)"
+  curl -fL "https://aka.ms/vs/17/release/vc_redist.x64.exe" -o "$redist" \
+    || die "could not download the VC++ Redistributable"
+fi
+
 ver="$(date +%Y.%m.%d)"
 mkdir -p "$ROOT/build/work" "$ROOT/dist"
 cat > "$ROOT/build/work/jarvis.iss" <<ISS
@@ -40,12 +55,38 @@ UninstallDisplayName=Jarvis Ultron
 WizardStyle=modern
 [Files]
 Source: "$(cygpath -w "$src")\\*"; DestDir: "{app}"; Flags: recursesubdirs ignoreversion
+Source: "$(cygpath -w "$redist")"; DestDir: "{tmp}"; Flags: dontcopy
 [Icons]
 Name: "{group}\\Jarvis Ultron"; Filename: "{app}\\JarvisUltron.exe"
 Name: "{userdesktop}\\Jarvis Ultron"; Filename: "{app}\\JarvisUltron.exe"
 Name: "{group}\\Uninstall Jarvis Ultron"; Filename: "{uninstallexe}"
 [Run]
+Filename: "{tmp}\\vc_redist.x64.exe"; Parameters: "/install /quiet /norestart"; \\
+    StatusMsg: "Installing the Visual C++ Runtime (one-time)..."; Check: VCRedistNeeded; Flags: waituntilterminated
 Filename: "{app}\\JarvisUltron.exe"; Description: "Launch Jarvis Ultron now"; Flags: nowait postinstall skipifsilent
+[Code]
+function VCRedistNeeded(): Boolean;
+var
+  installed: Cardinal;
+begin
+  // Standard Microsoft-documented key for the VC++ 2015-2022 x64 runtime. If this key is
+  // missing or Installed<>1, the runtime either isn't there or is too old — install it.
+  // If it's already present, this returns False and Setup skips the step (and the UAC
+  // prompt) entirely rather than re-running it on every install.
+  if not RegQueryDWordValue(HKLM64, 'SOFTWARE\\Microsoft\\VisualStudio\\14.0\\VC\\Runtimes\\X64', 'Installed', installed) then
+    Result := True
+  else
+    Result := (installed <> 1);
+end;
+
+procedure CurStepChanged(CurStep: TSetupStep);
+begin
+  // "Flags: dontcopy" above bundles vc_redist.x64.exe inside Setup.exe but does not
+  // auto-extract it — this pulls it into {tmp} only when it's actually going to be
+  // needed, right before the [Run] section runs it.
+  if (CurStep = ssInstall) and VCRedistNeeded() then
+    ExtractTemporaryFile('vc_redist.x64.exe');
+end;
 ISS
 "$ISCC" "$(cygpath -w "$ROOT/build/work/jarvis.iss")" > "$ROOT/build/work/iscc.log" 2>&1 \
   || { tail -30 "$ROOT/build/work/iscc.log"; die "Inno Setup failed (see build/work/iscc.log)"; }
