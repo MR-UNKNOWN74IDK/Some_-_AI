@@ -17,29 +17,37 @@ info "2/3 installing compiler toolchain (first run only)"
 out="build/work/native"
 rm -rf "$out"
 info "3/3 compiling to native code (30-90 min the first time, faster after)"
-# Switched from MinGW to MSVC (Visual Studio's own compiler, preinstalled on GitHub's
-# windows-latest runners) after MinGW kept running out of memory on one specific
-# auto-generated file (google-genai's types.py) even with --low-memory, --lto=no and
-# --jobs=1 all applied together — MSVC builds its internal representation of a large file
-# differently and does not hit the same wall. Trade-off: MSVC links the C++ runtime
-# dynamically rather than statically, so the target machine now needs the Visual C++
-# Redistributable installed — build/make_installer.sh bundles and silently installs it,
-# so this is handled automatically and nothing the end user has to do themselves.
-# --low-memory alone (serializing compilation instead of running it across all CPU cores)
-# was NOT enough: google-genai's auto-generated C file (module.google.genai.types.c) is
-# large enough to exhaust RAM even compiled by itself, with --low-memory already applied
-# (confirmed from an actual failed run: same "cc1.exe: out of memory" on the same file).
-# --lto=no additionally turns off link-time whole-program optimization, which is by far the
-# most memory-hungry part of compiling a single large file like this one; --jobs=1 pins
-# parallelism to one file at a time explicitly, rather than relying on --low-memory's
-# implicit choice of how many to run at once. Together these should fit the free-tier
-# runner's RAM. None of this changes what the compiled app does at runtime, only how much
-# memory compiling it needs; it costs real build time, which is why the workflow's timeout
-# was raised to match.
+# Back on MinGW (not MSVC): MSVC was tried as a fix for the memory crash below and hit the
+# SAME wall on the SAME file, just with MSVC's own wording ("compiler is out of heap space
+# in pass 2") — proving this was never a MinGW-specific weakness, it's that one particular
+# auto-generated file is too large for either compiler on a free-tier machine's RAM. MinGW
+# is back because it statically links the C++ runtime (no Visual C++ Redistributable needed
+# on the target machine — see README_ULTRA.md), which MSVC did not get us anything for.
+#
+# The actual fix: google-genai's types.py (23,745 lines, auto-generated from its data
+# models) is what crashed both compilers. Its two largest siblings in the same package
+# (models.py, _live_converters.py) are large enough to be a real risk too once types.py is
+# out of the way. Playwright's auto-generated API files (sync_api/_generated.py,
+# async_api/_generated.py) are comparably huge and Playwright is actively used for browser
+# automation, so excluding it proactively here, not reactively after a second failure.
+#
+# --nofollow-import-to=google.genai,playwright below tells Nuitka not to compile either
+# package to C at all; build/stage_py_fallback.sh (called after this compile) copies their
+# real, unmodified source onto disk next to the exe instead, and core's frozen-app bootstrap
+# (main.py) adds that folder to sys.path so Python's normal import system finds them there —
+# exactly as they would run from a normal pip install, never touched by Nuitka. This only
+# affects these two specific third-party libraries (whose source is public on PyPI regardless
+# of how this app ships) — none of Jarvis/Ultron's own code is affected; it stays compiled.
+# If some other huge auto-generated file in a different dependency trips the same wall later,
+# the fix is the same: add it here, and to the copy list in build/stage_py_fallback.sh.
+#
+# --low-memory/--lto=no/--jobs=1 are kept as an extra safety margin on top of the above, in
+# case some other file not caught by the scan above still needs the memory headroom.
 # Windows metadata below is cosmetic (Properties -> Details tab) but also makes the exe
 # look like a normal signed-looking app rather than an anonymous binary to SmartScreen/AV
 # heuristics, which somewhat reduces (never eliminates) false-flagging on another PC.
-"$vp" -m nuitka --standalone --assume-yes-for-downloads --low-memory --lto=no --jobs=1 \
+"$vp" -m nuitka --standalone --assume-yes-for-downloads --mingw64 --low-memory --lto=no --jobs=1 \
+  --nofollow-import-to=google.genai --nofollow-import-to=playwright \
   --enable-plugin=pyqt6 --windows-console-mode=disable \
   --windows-icon-from-ico=assets/jarvis_logo.ico \
   --company-name="Jarvis Ultron (private build)" --product-name="Jarvis Ultron" \
@@ -66,6 +74,7 @@ find "$d" -maxdepth 1 \( -name "*.py" -o -name "*.pyc" \) -delete 2>/dev/null ||
 # it is read by core/skills_engine.py at runtime, it is not documentation.
 find "$d" -iname "*.md" ! -path "$d/skills/*/SKILL.md" -delete 2>/dev/null || true
 
+bash build/stage_py_fallback.sh "$ROOT/$d"
 bash build/stage_runtime.sh "$ROOT/$d"
 bash build/strip_symbols.sh "$ROOT/$d"
 ok "compiled: $d/JarvisUltron.exe"

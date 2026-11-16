@@ -3,6 +3,17 @@ import sys as _sys, os as _os
 if "__compiled__" in globals() and not getattr(_sys, "frozen", False):
     _sys.frozen = True
     _sys._MEIPASS = _os.path.dirname(_os.path.abspath(_sys.argv[0]))
+
+# google.genai and playwright are excluded from Nuitka's compile (see build/build_native.sh
+# --nofollow-import-to and build/stage_py_fallback.sh) because one of google.genai's
+# auto-generated files is too large to compile on a free-tier CI machine's RAM. Their real,
+# unmodified source is instead copied to _py_fallback/ next to the exe; this makes Python's
+# normal import system find it there. Must run before the "from google import genai" import
+# below, and unconditionally at module level (not inside a function) for exactly that reason.
+# A no-op in a normal source run: the folder only exists in a compiled build.
+_fallback_dir = _os.path.join(getattr(_sys, "_MEIPASS", _os.path.dirname(_os.path.abspath(__file__))), "_py_fallback")
+if _os.path.isdir(_fallback_dir) and _fallback_dir not in _sys.path:
+    _sys.path.insert(0, _fallback_dir)
 def _jarvis_ultron_bootstrap() -> None:
     """Vault + console guard + skill runtime. Called only when Jarvis actually starts
     (main(), below) — NOT at import time. main.py is imported by the test suite just to
