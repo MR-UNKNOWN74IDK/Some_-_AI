@@ -14,7 +14,11 @@ info "1/3 tests"
 info "2/3 installing compiler toolchain (first run only)"
 "$vp" -m pip install -q nuitka ordered-set zstandard
 
-out="build/work/native"
+out="$ROOT/build/work/native"   # must be absolute: Inno Setup resolves relative Source:
+                                 # paths against the .iss file's OWN folder (build/work/),
+                                 # not the project root — a relative path here previously
+                                 # got silently doubled into build/work/build/work/... by
+                                 # the time Inno Setup tried to read it.
 rm -rf "$out"
 info "3/3 compiling to native code (30-90 min the first time, faster after)"
 # Back on MinGW (not MSVC): MSVC was tried as a fix for the memory crash below and hit the
@@ -74,8 +78,8 @@ find "$d" -maxdepth 1 \( -name "*.py" -o -name "*.pyc" \) -delete 2>/dev/null ||
 # it is read by core/skills_engine.py at runtime, it is not documentation.
 find "$d" -iname "*.md" ! -path "$d/skills/*/SKILL.md" -delete 2>/dev/null || true
 
-bash build/stage_py_fallback.sh "$ROOT/$d"
-bash build/stage_runtime.sh "$ROOT/$d"
-bash build/strip_symbols.sh "$ROOT/$d"
+bash build/stage_py_fallback.sh "$d"
+bash build/stage_runtime.sh "$d"
+bash build/strip_symbols.sh "$d"
 ok "compiled: $d/JarvisUltron.exe"
 echo "DIST_DIR=$d" > build/work/last_native_dir.txt

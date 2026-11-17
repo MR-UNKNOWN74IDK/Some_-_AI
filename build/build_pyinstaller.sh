@@ -24,16 +24,18 @@ sed -i "s#(os.path.join(cwd, 'workspace_store.py'), '.'),#(os.path.join(cwd, 'wo
 info "3/4 PyInstaller (several minutes)"
 "$vp" -m PyInstaller --noconfirm --clean --distpath build/work/pyi_dist --workpath build/work/pyi build/work/JarvisUltron.spec
 
-out="build/work/pyi_dist/JarvisUltron"
+out="$ROOT/build/work/pyi_dist/JarvisUltron"   # must be absolute — same reason as build_native.sh:
+                                                # Inno Setup resolves relative Source: paths against
+                                                # the .iss file's own folder, not the project root.
 [ -f "$out/JarvisUltron.exe" ] || die "exe not produced"
-if [ "$runtime" = 1 ]; then info "4/4 skill runtime"; bash build/stage_runtime.sh "$ROOT/$out"
+if [ "$runtime" = 1 ]; then info "4/4 skill runtime"; bash build/stage_runtime.sh "$out"
 else warn "4/4 skipped: skill forging/testing unavailable in this build"; fi
 if find "$out" \( -name 'api_keys.json' -o -name 'email_credentials.json' -o -name 'secrets.bin' \) | grep -q .; then
   die "credential file found in dist — aborting"
 fi
 # Developer/user-info docs never ship; skills/*/SKILL.md is kept (read at runtime, not documentation).
 find "$out" -iname "*.md" ! -path "$out/skills/*/SKILL.md" -delete 2>/dev/null || true
-bash build/strip_symbols.sh "$ROOT/$out"
+bash build/strip_symbols.sh "$out"
 echo "DIST_DIR=$out" > build/work/last_native_dir.txt
 ok "built (fallback engine): $out/JarvisUltron.exe"
 echo "Run ./jarvis.sh package installer to wrap this into one Setup.exe."
