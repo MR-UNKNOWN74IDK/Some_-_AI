@@ -10,15 +10,9 @@ import os
 import sys
 import platform
 
-# Hardware acceleration & WebGL flags for smooth 180fps+ rendering across Windows, macOS, and Linux
-_base_chromium_flags = (
-    "--enable-gpu-rasterization --enable-zero-copy --ignore-gpu-blocklist "
-    "--enable-accelerated-2d-canvas --enable-webgl --enable-webgl2-compute-context "
-    "--disable-frame-rate-limit --disable-gpu-vsync --num-raster-threads=4 --disable-gpu-driver-bug-workarounds"
-)
-if sys.platform == "win32":
-    _base_chromium_flags += " --use-angle=d3d11"
-elif sys.platform.startswith("linux"):
+# Light-touch Chromium flags: only used by the optional embedded web views (globe, radar, live orb).
+_base_chromium_flags = "--enable-gpu-rasterization --ignore-gpu-blocklist"
+if sys.platform.startswith("linux"):
     _base_chromium_flags += " --no-sandbox --disable-dev-shm-usage"
 os.environ.setdefault("QTWEBENGINE_CHROMIUM_FLAGS", _base_chromium_flags)
 import random
@@ -94,30 +88,35 @@ _OS = platform.system()  # "Windows" | "Darwin" | "Linux"
 
 
 class C:
-    BG        = "#020305"
-    PANEL     = "#07080b"
-    PANEL2    = "#0d0f14"
-    BORDER    = "rgba(0, 229, 255, 0.16)"
-    BORDER_B  = "rgba(0, 229, 255, 0.35)"
-    BORDER_A  = "rgba(255, 255, 255, 0.20)"
-    PRI       = "#ffffff"
-    PRI_DIM   = "#e2e8f0"
-    PRI_GHO   = "rgba(255, 255, 255, 0.12)"
-    ACC       = "#00e5ff"
-    ACC2      = "#80ffff"
-    GREEN     = "#37ff5f"
-    GREEN_D   = "#1dcc43"
-    RED       = "#ff3b30"
-    MUTED_C   = "#00e5ff"
-    TEXT      = "#f4f6f8"
-    TEXT_DIM  = "#8e949d"
-    TEXT_MED  = "#c5cad2"
-    WHITE     = "#ffffff"
+    """Blue / black / red palette: deep ink background, calm blue accent, soft red highlights (no neon)."""
+    BG        = "#0a0b10"
+    PANEL     = "#11131a"
+    PANEL2    = "#181b25"
+    BORDER    = "rgba(255, 255, 255, 0.07)"
+    BORDER_B  = "rgba(91, 140, 255, 0.30)"
+    BORDER_A  = "rgba(255, 255, 255, 0.12)"
+    PRI       = "#eef2ff"
+    PRI_DIM   = "#c9d3ee"
+    PRI_GHO   = "rgba(238, 242, 255, 0.10)"
+    ACC       = "#5b8cff"
+    ACC2      = "#a9c0ff"
+    ACC_RGB   = "91, 140, 255"
+    ACC_T     = (91, 140, 255)
+    GREEN     = "#6ec1ff"
+    GREEN_D   = "#4aa3e8"
+    RED       = "#ff5a64"
+    MUTED_C   = "#5b8cff"
+    TEXT      = "#e8ecf8"
+    TEXT_DIM  = "#8790a8"
+    TEXT_MED  = "#b9c2dc"
+    WHITE     = "#f7f9ff"
     DARK      = "#000000"
-    BAR_BG    = "#222222"
-    ICE       = "#00e5ff"
-    ICE_DIM   = "#0099cc"
-    ICE_GHO   = "rgba(0, 229, 255, 0.15)"
+    BAR_BG    = "#1d212d"
+    ICE       = "#5b8cff"
+    ICE_DIM   = "#4a74e0"
+    ICE_GHO   = "rgba(91, 140, 255, 0.14)"
+    _DEFAULT_ACC  = "#5b8cff"
+    _DEFAULT_ACC2 = "#a9c0ff"
     _listeners: list = []
 
     @classmethod
@@ -134,12 +133,12 @@ class C:
     def load_theme(cls, theme_hex: str):
         if not theme_hex.startswith("#") or len(theme_hex) != 7:
             # Fallback to predefined colors if it's not a hex or just a word
-            if theme_hex.lower() == "blue": theme_hex = "#007aff"
-            elif theme_hex.lower() == "green": theme_hex = "#37ff5f"
-            elif theme_hex.lower() == "red": theme_hex = "#ff3b30"
-            elif theme_hex.lower() == "ice": theme_hex = "#00e5ff"
-            elif theme_hex.lower() == "white": theme_hex = "#ffffff"
-            else: theme_hex = "#ffffff"
+            if theme_hex.lower() == "blue": theme_hex = "#5b8cff"
+            elif theme_hex.lower() == "green": theme_hex = "#6ec1ff"
+            elif theme_hex.lower() == "red": theme_hex = "#ff5a64"
+            elif theme_hex.lower() == "ice": theme_hex = "#5b8cff"
+            elif theme_hex.lower() == "white": theme_hex = "#5b8cff"
+            else: theme_hex = "#5b8cff"
             
         import colorsys
         try:
@@ -147,8 +146,8 @@ class C:
             g = int(theme_hex[3:5], 16)
             b = int(theme_hex[5:7], 16)
         except Exception:
-            r, g, b = 255, 255, 255
-            theme_hex = "#ffffff"
+            r, g, b = 91, 140, 255
+            theme_hex = "#5b8cff"
             
         h, l, s = colorsys.rgb_to_hls(r/255.0, g/255.0, b/255.0)
         
@@ -162,15 +161,28 @@ class C:
         r_light, g_light, b_light = colorsys.hls_to_rgb(h, l_light, s)
         hex_light = f"#{int(r_light*255):02x}{int(g_light*255):02x}{int(b_light*255):02x}"
 
-        cls.PRI       = theme_hex
-        cls.PRI_DIM   = hex_dim
-        cls.PRI_GHO   = f"rgba({r}, {g}, {b}, 0.15)"
-        cls.ACC       = "#00e5ff" if theme_hex.lower() in ("#ffffff", "#f4f6f8") else theme_hex
-        cls.ACC2      = "#80ffff" if theme_hex.lower() in ("#ffffff", "#f4f6f8") else hex_light
-        cls.MUTED_C   = "#00e5ff" if theme_hex.lower() in ("#ffffff", "#f4f6f8") else theme_hex
-        cls.BORDER    = f"rgba({r}, {g}, {b}, 0.15)"
-        cls.BORDER_B  = "rgba(0, 229, 255, 0.35)" if theme_hex.lower() in ("#ffffff", "#f4f6f8") else f"rgba({r}, {g}, {b}, 0.25)"
-        cls.BORDER_A  = f"rgba({r}, {g}, {b}, 0.18)"
+        # legacy amber / cyan / white defaults all fall back to the soft default accent
+        _legacy = ("#ffffff", "#f4f6f8", "#e8ecf8", "#ffb300", "#00e5ff", "#ffd700", "#d4af37", "#f2a47c", "#5b8cff")
+        is_default = theme_hex.lower() in _legacy
+        if is_default:
+            r, g, b = 91, 140, 255
+            hex_light = cls._DEFAULT_ACC2
+            theme_hex = cls._DEFAULT_ACC
+            hex_dim = "#4a74e0"
+        cls.PRI       = "#eef2ff" if is_default else theme_hex
+        cls.PRI_DIM   = "#c9d3ee" if is_default else hex_dim
+        cls.PRI_GHO   = f"rgba({r}, {g}, {b}, 0.12)"
+        cls.ACC       = theme_hex
+        cls.ACC2      = hex_light
+        cls.ACC_RGB   = f"{r}, {g}, {b}"
+        cls.ACC_T     = (r, g, b)
+        cls.MUTED_C   = theme_hex
+        cls.BORDER    = "rgba(255, 255, 255, 0.07)"
+        cls.BORDER_B  = f"rgba({r}, {g}, {b}, 0.30)"
+        cls.BORDER_A  = "rgba(255, 255, 255, 0.12)"
+        cls.ICE       = theme_hex
+        cls.ICE_DIM   = hex_dim
+        cls.ICE_GHO   = f"rgba({r}, {g}, {b}, 0.14)"
 
         for cb in list(cls._listeners):
             try:
@@ -182,27 +194,33 @@ try:
     if APP_SETTINGS_FILE.exists():
         with open(APP_SETTINGS_FILE, "r", encoding="utf-8") as f:
             _global_settings = json.load(f)
-            C.load_theme(_global_settings.get("app_theme", "#ffffff"))
+            C.load_theme(_global_settings.get("app_theme", "#5b8cff"))
 except Exception:
     pass
 
-# Patch setStyleSheet to dynamically replace hardcoded gold colors with active white and ice theme
+# Patch setStyleSheet so every hard-coded legacy colour follows the live (soft) theme.
 _old_setStyleSheet = QWidget.setStyleSheet
+_RGBA_ACC = re.compile(r"rgba\(\s*0,\s*229,\s*255,")
+_LEGACY_ACCENT = ("#00e5ff", "#ffd700", "#d4af37", "#00b4d8", "#00b3cc", "#33ebff", "#6fd6ff", "#7bd3f7", "#88ddff")
 def _new_setStyleSheet(self, style):
     if style:
-        style = style.replace("#00e5ff", getattr(C, "ACC", "#00e5ff"))
-        style = style.replace("#00e5ff", getattr(C, "ACC", "#00e5ff"))
-        style = style.replace("#00e5ff", getattr(C, "ACC", "#00e5ff"))
-        style = style.replace("#ffd700", getattr(C, "ACC", "#00e5ff"))
-        style = style.replace("#d4af37", getattr(C, "ACC", "#00e5ff"))
-        style = style.replace("#80ffff", getattr(C, "ACC2", "#80ffff"))
-        style = style.replace("#00b4d8", getattr(C, "ACC", "#00e5ff"))
-        style = style.replace("255, 179, 0", "0, 229, 255")
-        style = style.replace("255,179,0", "0,229,255")
-        style = style.replace("255, 190, 26", "0, 229, 255")
-        style = style.replace("244, 180, 0", "0, 229, 255")
+        for old in _LEGACY_ACCENT:
+            style = style.replace(old, getattr(C, "ACC", "#5b8cff"))
+            style = style.replace(old.upper(), getattr(C, "ACC", "#5b8cff"))
+        style = style.replace("#80ffff", getattr(C, "ACC2", "#a9c0ff"))
+        style = _RGBA_ACC.sub(f"rgba({getattr(C, 'ACC_RGB', '91, 140, 255')},", style)
+        for old in ("255, 179, 0", "255,179,0", "255, 190, 26", "244, 180, 0"):
+            style = style.replace(old, getattr(C, "ACC_RGB", "91, 140, 255"))
     _old_setStyleSheet(self, style)
 QWidget.setStyleSheet = _new_setStyleSheet
+
+
+def _live_background_enabled() -> bool:
+    try:
+        with open(APP_SETTINGS_FILE, "r", encoding="utf-8") as f:
+            return bool(json.load(f).get("live_background", False))
+    except Exception:
+        return False
 
 
 class BackgroundWidget(QWidget):
@@ -227,8 +245,18 @@ class BackgroundWidget(QWidget):
             except Exception:
                 self._fallback_pixmap = None
         self._web_view = None
-
-        if WEB_ENGINE_AVAILABLE:
+        # Light by default: a painted gradient + soft breathing glow.
+        # The heavy WebGL orb is opt-in: set "live_background": true in app_settings.json.
+        self._use_web = bool(WEB_ENGINE_AVAILABLE and _live_background_enabled())
+        self._last_state = "IDLE"
+        self._level = 0.0
+        self._phase = 0.0
+        self._glow = 0.0
+        self._bg_cache: QPixmap | None = None
+        self._anim = QTimer(self)
+        self._anim.setInterval(50)  # 20 fps, and only while something is happening
+        self._anim.timeout.connect(self._tick_glow)
+        if self._use_web:
             self._init_web_engine()
 
     def _init_web_engine(self):
@@ -250,8 +278,8 @@ class BackgroundWidget(QWidget):
             except Exception:
                 pass
 
-            self._web_view.setStyleSheet("background: #020306;")
-            self._web_view.page().setBackgroundColor(QColor("#020306"))
+            self._web_view.setStyleSheet("background: #0a0b10;")
+            self._web_view.page().setBackgroundColor(QColor(C.BG))
             self._web_view.loadFinished.connect(self._on_web_loaded)
 
             file_url = QUrl.fromLocalFile(str(html_path.resolve()))
@@ -320,6 +348,8 @@ class BackgroundWidget(QWidget):
             pass
 
     def _do_set_ai_state(self, state: str) -> None:
+        self._last_state = (state or "IDLE").strip().upper()
+        self._wake_glow()
         if self._web_view:
             try:
                 st = (state or "IDLE").strip().replace("'", "\\'")
@@ -335,8 +365,26 @@ class BackgroundWidget(QWidget):
         except Exception:
             pass
 
+    def _wake_glow(self) -> None:
+        if not self._web_view and not self._anim.isActive() and self.isVisible():
+            self._anim.start()
+
+    def _tick_glow(self) -> None:
+        st = self._last_state
+        busy = st not in ("", "IDLE", "MUTED", "SLEEP")
+        target = 1.0 if busy else 0.0
+        target = max(target, self._level)
+        self._glow += (target - self._glow) * 0.12
+        self._phase += 0.05 + 0.05 * self._glow
+        self._level *= 0.9
+        if not busy and self._glow < 0.01 and self._level < 0.01:
+            self._glow = 0.0
+            self._anim.stop()
+        self.update()
+
     def pause_rendering(self) -> None:
         self._is_paused = True
+        self._anim.stop()
         if self._web_view:
             try:
                 page = self._web_view.page()
@@ -347,6 +395,7 @@ class BackgroundWidget(QWidget):
 
     def resume_rendering(self) -> None:
         self._is_paused = False
+        self._wake_glow()
         if self._web_view:
             try:
                 page = self._web_view.page()
@@ -357,6 +406,11 @@ class BackgroundWidget(QWidget):
 
     def _do_set_audio_level(self, level: float) -> None:
         if getattr(self, "_is_paused", False):
+            return
+        if not self._web_view:
+            self._level = max(0.0, min(1.0, float(level)))
+            if self._level > 0.03:
+                self._wake_glow()
             return
         now = time.monotonic()
         if (now - self._last_audio_js_time) < 0.033:  # 30 FPS bridge throttling prevents IPC saturation
@@ -388,7 +442,7 @@ class BackgroundWidget(QWidget):
 
     def showEvent(self, event):
         super().showEvent(event)
-        if self._web_view is None and WEB_ENGINE_AVAILABLE:
+        if self._web_view is None and self._use_web:
             self._init_web_engine()
         elif self._web_view and self.width() > 0 and self.height() > 0:
             self._web_view.setGeometry(self.rect())
@@ -396,31 +450,51 @@ class BackgroundWidget(QWidget):
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
-        if self._web_view is None and WEB_ENGINE_AVAILABLE:
+        if self._web_view is None and self._use_web:
             self._init_web_engine()
         elif self._web_view and self.width() > 0 and self.height() > 0:
             self._web_view.setGeometry(self.rect())
             self._web_view.lower()
 
+    def _build_bg_cache(self) -> QPixmap:
+        w, h = max(1, self.width()), max(1, self.height())
+        pm = QPixmap(w, h)
+        p = QPainter(pm)
+        p.setRenderHint(QPainter.RenderHint.Antialiasing)
+        g = QLinearGradient(0, 0, 0, h)
+        g.setColorAt(0.0, QColor("#0d0f16"))
+        g.setColorAt(1.0, QColor("#08090d"))
+        p.fillRect(0, 0, w, h, g)
+        rc = QColor(C.RED)
+        for (fx, fy, rad, a, col) in ((0.88, 0.05, 0.55, 30, QColor(*C.ACC_T)), (0.05, 1.0, 0.5, 20, rc)):
+            rg = QRadialGradient(w * fx, h * fy, max(w, h) * rad)
+            rg.setColorAt(0.0, QColor(col.red(), col.green(), col.blue(), a))
+            rg.setColorAt(1.0, QColor(col.red(), col.green(), col.blue(), 0))
+            p.fillRect(0, 0, w, h, rg)
+        p.end()
+        return pm
+
     def paintEvent(self, event):
-        if not self._web_view:
-            painter = QPainter(self)
-            rect = self.rect()
-            if self._fallback_pixmap and not self._fallback_pixmap.isNull():
-                painter.fillRect(rect, QColor(0, 0, 0))
-                scaled = self._fallback_pixmap.scaled(
-                    rect.size(),
-                    Qt.AspectRatioMode.KeepAspectRatioByExpanding,
-                    Qt.TransformationMode.SmoothTransformation,
-                )
-                x = rect.x() + (rect.width() - scaled.width()) // 2
-                y = rect.y() + (rect.height() - scaled.height()) // 2
-                painter.drawPixmap(x, y, scaled)
-            else:
-                painter.fillRect(rect, QColor(0, 0, 0))
-            painter.end()
+        if self._web_view:
+            super().paintEvent(event)
             return
-        super().paintEvent(event)
+        painter = QPainter(self)
+        if self._bg_cache is None or self._bg_cache.size() != self.size():
+            self._bg_cache = self._build_bg_cache()
+        painter.drawPixmap(0, 0, self._bg_cache)
+        if self._glow > 0.01:
+            painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+            r, g, b = C.ACC_T
+            w, h = self.width(), self.height()
+            breathe = 0.5 + 0.5 * math.sin(self._phase)
+            rad = min(w, h) * (0.30 + 0.06 * breathe + 0.10 * self._level)
+            rg = QRadialGradient(w * 0.5, h * 0.46, rad)
+            rg.setColorAt(0.0, QColor(r, g, b, int(46 * self._glow)))
+            rg.setColorAt(1.0, QColor(r, g, b, 0))
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.setBrush(QBrush(rg))
+            painter.drawEllipse(QPointF(w * 0.5, h * 0.46), rad, rad)
+        painter.end()
 
 
 class RemoteKeyOverlay(QWidget):
@@ -449,7 +523,7 @@ class RemoteKeyOverlay(QWidget):
             
         frame.setStyleSheet(f"""
             QFrame#RemoteOverlayMainFrame {{
-                background: rgba(10, 12, 18, 250);
+                background: rgba(10, 11, 16, 250);
                 border: 1px solid rgba(255, 255, 255, 0.06);
                 border-radius: 24px;
             }}
@@ -481,7 +555,7 @@ class RemoteKeyOverlay(QWidget):
         self._qr_label = QLabel()
         self._qr_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._qr_label.setFixedSize(240, 240)
-        self._qr_label.setStyleSheet("background: white; border-radius: 12px; padding: 12px; border: none;")
+        self._qr_label.setStyleSheet("background: white; border-radius: 14px; padding: 12px; border: none;")
         qr_row = QHBoxLayout()
         qr_row.addStretch()
         qr_row.addWidget(self._qr_label)
@@ -498,19 +572,18 @@ class RemoteKeyOverlay(QWidget):
         self._url_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._url_lbl.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
         self._url_lbl.setFont(QFont("Consolas", 10))
-        self._url_lbl.setStyleSheet(f"color: {C.TEXT_MED}; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 8px; padding: 6px;")
+        self._url_lbl.setStyleSheet(f"color: {C.TEXT_MED}; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 10px; padding: 6px;")
         lay.addWidget(self._url_lbl)
 
         self._key_lbl = QLabel(key)
         self._key_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self._key_lbl.setFont(QFont("Consolas", 36, QFont.Weight.Black))
+        self._key_lbl.setFont(QFont("Consolas", 36, QFont.Weight.DemiBold))
         self._key_lbl.setStyleSheet(f"""
             color: #00e5ff;
             background: rgba(0, 229, 255, 0.05);
             border: 1px solid rgba(0, 229, 255, 0.2);
-            border-radius: 16px;
+            border-radius: 18px;
             padding: 18px;
-            letter-spacing: 14px;
             font-weight: 900;
             margin-top: 12px;
             margin-bottom: 8px;
@@ -535,7 +608,7 @@ class RemoteKeyOverlay(QWidget):
                 background: rgba(255, 255, 255, 0.03);
                 color: {C.WHITE};
                 border: 1px solid rgba(255, 255, 255, 0.08);
-                border-radius: 12px;
+                border-radius: 14px;
             }}
             QPushButton:hover {{ 
                 background: rgba(0, 229, 255, 0.08); 
@@ -555,12 +628,12 @@ class RemoteKeyOverlay(QWidget):
                 background: rgba(255, 255, 255, 0.03);
                 color: {C.WHITE};
                 border: 1px solid rgba(255, 255, 255, 0.08);
-                border-radius: 12px;
+                border-radius: 14px;
             }}
             QPushButton:hover {{ 
                 background: rgba(255, 60, 60, 0.08); 
                 border: 1px solid rgba(255, 60, 60, 0.3);
-                color: #ff6b6b;
+                color: #ff5a64;
             }}
         """)
         close_btn.clicked.connect(self._do_close)
@@ -602,7 +675,7 @@ class RemoteKeyOverlay(QWidget):
         except ImportError:
             self._qr_label.setText("Install\nqrcode[pil]")
             self._qr_label.setFont(QFont("Segoe UI", 9, QFont.Weight.Bold))
-            self._qr_label.setStyleSheet("color: #111; background: white; border-radius: 12px; padding: 6px;")
+            self._qr_label.setStyleSheet("color: #111; background: white; border-radius: 14px; padding: 6px;")
         except Exception:
             self._qr_label.setText("QR failed")
 
@@ -615,18 +688,17 @@ class RemoteKeyOverlay(QWidget):
 
     def mark_connected(self) -> None:
         self._ctimer.stop()
-        self._key_lbl.setText("CONNECTED")
+        self._key_lbl.setText("Connected")
         self._key_lbl.setStyleSheet(f"""
             color: {C.GREEN};
             background: rgba(55,255,95,20);
             border: 1px solid rgba(55,255,95,150);
-            border-radius: 10px;
+            border-radius: 12px;
             padding: 8px;
-            letter-spacing: 4px;
         """)
         self._qr_label.setText("OK")
-        self._qr_label.setFont(QFont("Segoe UI", 34, QFont.Weight.Black))
-        self._qr_label.setStyleSheet("color: #37ff5f; background: #041006; border-radius: 12px;")
+        self._qr_label.setFont(QFont("Segoe UI", 34, QFont.Weight.DemiBold))
+        self._qr_label.setStyleSheet("color: #6ec1ff; background: #041006; border-radius: 14px;")
         self._timer_lbl.setText("Phone connected. Jarvis remote is ready.")
 
     def _refresh_key(self):
@@ -647,9 +719,8 @@ class RemoteKeyOverlay(QWidget):
             color: {C.WHITE};
             background: rgba(0, 229, 255,28);
             border: 1px solid {C.PRI};
-            border-radius: 10px;
+            border-radius: 12px;
             padding: 8px;
-            letter-spacing: 9px;
         """)
         self._update_qr(self._auto_login_url)
         self._expiry = time.time() + 600
@@ -694,7 +765,7 @@ class DailyBriefingOverlay(QWidget):
         self._frame.setFixedSize(self.size())
         self._frame.setStyleSheet(f"""
             QFrame#BriefingOverlayMainFrame {{
-                background: rgba(10, 12, 18, 250);
+                background: rgba(10, 11, 16, 250);
                 border: 1px solid rgba(0, 229, 255, 0.4);
                 border-radius: 20px;
             }}
@@ -722,7 +793,7 @@ class DailyBriefingOverlay(QWidget):
 
         title_lbl = QLabel("⚡ JARVIS INTELLIGENCE // UNIFIED MORNING BRIEFING")
         title_lbl.setFont(QFont("Segoe UI", 12, QFont.Weight.Bold))
-        title_lbl.setStyleSheet(f"color: {C.PRI}; letter-spacing: 1.5px; background: transparent; border: none;")
+        title_lbl.setStyleSheet(f"color: {C.PRI}; background: transparent; border: none;")
         hdr_info.addWidget(title_lbl)
 
         ts_str = self._data.get("timestamp") or datetime.datetime.now().strftime("%A, %B %d • %I:%M %p")
@@ -743,12 +814,12 @@ class DailyBriefingOverlay(QWidget):
                 background: rgba(255, 255, 255, 0.05);
                 color: {C.TEXT_DIM};
                 border: 1px solid rgba(255, 255, 255, 0.1);
-                border-radius: 16px;
+                border-radius: 18px;
             }}
             QPushButton:hover {{
                 background: rgba(255, 60, 60, 0.2);
                 border: 1px solid rgba(255, 60, 60, 0.5);
-                color: #ff5555;
+                color: #ff5a64;
             }}
         """)
         close_btn.clicked.connect(self._do_close)
@@ -777,7 +848,7 @@ class DailyBriefingOverlay(QWidget):
             QFrame {
                 background: rgba(0, 0, 0, 0.45);
                 border: 1px solid rgba(255, 255, 255, 0.08);
-                border-radius: 12px;
+                border-radius: 14px;
                 padding: 4px;
             }
         """)
@@ -787,7 +858,7 @@ class DailyBriefingOverlay(QWidget):
 
         narr_tag = QLabel("🎙 EXECUTIVE SUMMARY")
         narr_tag.setFont(QFont("Segoe UI", 8, QFont.Weight.Bold))
-        narr_tag.setStyleSheet(f"color: {C.PRI}; letter-spacing: 1px; background: transparent; border: none;")
+        narr_tag.setStyleSheet(f"color: {C.PRI}; background: transparent; border: none;")
         narr_lay.addWidget(narr_tag)
 
         narrative_text = self._data.get("spoken_narrative") or "No briefing narrative generated."
@@ -820,7 +891,7 @@ class DailyBriefingOverlay(QWidget):
                 background: rgba(0, 229, 255, 0.12);
                 color: {C.PRI};
                 border: 1px solid rgba(0, 229, 255, 0.35);
-                border-radius: 8px;
+                border-radius: 10px;
             }}
             QPushButton:hover {{
                 background: rgba(0, 229, 255, 0.25);
@@ -843,7 +914,7 @@ class DailyBriefingOverlay(QWidget):
             QFrame {
                 background: rgba(255, 255, 255, 0.025);
                 border: 1px solid rgba(0, 229, 255, 0.18);
-                border-radius: 12px;
+                border-radius: 14px;
             }
         """)
         return box
@@ -857,7 +928,7 @@ class DailyBriefingOverlay(QWidget):
         w = self._data.get("weather") or {}
         tag = QLabel("🌤  ATMOSPHERE & WEATHER")
         tag.setFont(QFont("Segoe UI", 8, QFont.Weight.Bold))
-        tag.setStyleSheet(f"color: {C.PRI}; letter-spacing: 1px; background: transparent; border: none;")
+        tag.setStyleSheet(f"color: {C.PRI}; background: transparent; border: none;")
         lay.addWidget(tag)
 
         temp = w.get("temp_c")
@@ -895,7 +966,7 @@ class DailyBriefingOverlay(QWidget):
         cal = self._data.get("calendar") or {}
         tag = QLabel("📅  TODAY'S AGENDA")
         tag.setFont(QFont("Segoe UI", 8, QFont.Weight.Bold))
-        tag.setStyleSheet(f"color: {C.PRI}; letter-spacing: 1px; background: transparent; border: none;")
+        tag.setStyleSheet(f"color: {C.PRI}; background: transparent; border: none;")
         lay.addWidget(tag)
 
         count = cal.get("count", 0)
@@ -938,7 +1009,7 @@ class DailyBriefingOverlay(QWidget):
         gm = self._data.get("gmail") or {}
         tag = QLabel("✉  GMAIL COMMUNICATIONS")
         tag.setFont(QFont("Segoe UI", 8, QFont.Weight.Bold))
-        tag.setStyleSheet(f"color: {C.PRI}; letter-spacing: 1px; background: transparent; border: none;")
+        tag.setStyleSheet(f"color: {C.PRI}; background: transparent; border: none;")
         lay.addWidget(tag)
 
         count = gm.get("count", 0)
@@ -986,7 +1057,7 @@ class DailyBriefingOverlay(QWidget):
         ig = self._data.get("instagram") or {}
         tag = QLabel("📸  INSTAGRAM INTEL")
         tag.setFont(QFont("Segoe UI", 8, QFont.Weight.Bold))
-        tag.setStyleSheet(f"color: {C.PRI}; letter-spacing: 1px; background: transparent; border: none;")
+        tag.setStyleSheet(f"color: {C.PRI}; background: transparent; border: none;")
         lay.addWidget(tag)
 
         count = ig.get("count", 0)
@@ -1050,9 +1121,9 @@ class ConfirmationOverlay(QWidget):
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         self.setStyleSheet(f"""
             ConfirmationOverlay {{
-                background: rgba(18, 10, 4, 250);
+                background: rgba(10, 11, 16, 250);
                 border: 2px solid {C.ACC};
-                border-radius: 12px;
+                border-radius: 14px;
             }}
         """)
         self.setFixedWidth(self._OW)
@@ -1063,7 +1134,7 @@ class ConfirmationOverlay(QWidget):
 
         hdr = QLabel("⚠  PHYSICAL CONFIRMATION REQUIRED")
         hdr.setFont(QFont("Segoe UI", 11, QFont.Weight.Bold))
-        hdr.setStyleSheet(f"color: {C.ACC}; background: transparent; letter-spacing: 0.5px;")
+        hdr.setStyleSheet(f"color: {C.ACC}; background: transparent;")
         lay.addWidget(hdr)
 
         ttl = QLabel(title)
@@ -1097,7 +1168,7 @@ class ConfirmationOverlay(QWidget):
                 background: rgba(0, 229, 255, 0.15);
                 color: {C.ACC};
                 border: 1.5px solid {C.ACC};
-                border-radius: 6px;
+                border-radius: 8px;
                 padding: 0 16px;
             }}
             QPushButton:hover {{
@@ -1117,7 +1188,7 @@ class ConfirmationOverlay(QWidget):
                 background: rgba(255, 255, 255, 0.05);
                 color: {C.TEXT_MED};
                 border: 1px solid {C.BORDER};
-                border-radius: 6px;
+                border-radius: 8px;
                 padding: 0 16px;
             }}
             QPushButton:hover {{
@@ -1170,9 +1241,9 @@ class MemoryInspectorOverlay(QWidget):
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         self.setStyleSheet(f"""
             MemoryInspectorOverlay {{
-                background: rgba(8, 10, 15, 250);
+                background: rgba(10, 11, 16, 250);
                 border: 1.5px solid {C.BORDER_B};
-                border-radius: 12px;
+                border-radius: 14px;
             }}
         """)
         self.setFixedWidth(self._OW)
@@ -1205,7 +1276,7 @@ class MemoryInspectorOverlay(QWidget):
 
         hdr = QLabel("🧠  WHAT JARVIS REMEMBERS")
         hdr.setFont(QFont("Segoe UI", 12, QFont.Weight.Bold))
-        hdr.setStyleSheet(f"color: {C.PRI}; background: transparent; letter-spacing: 0.5px;")
+        hdr.setStyleSheet(f"color: {C.PRI}; background: transparent;")
         self._lay.addWidget(hdr)
 
         sep = QFrame(); sep.setFrameShape(QFrame.Shape.HLine)
@@ -1232,10 +1303,10 @@ class MemoryInspectorOverlay(QWidget):
         search_input.setText(self._filter_query)
         search_input.setStyleSheet(f"""
             QLineEdit {{
-                background: rgba(20, 24, 32, 220);
+                background: rgba(10, 11, 16, 220);
                 color: {C.WHITE};
                 border: 1px solid {C.BORDER};
-                border-radius: 6px;
+                border-radius: 8px;
                 padding: 6px 10px;
                 font-size: 11px;
             }}
@@ -1254,8 +1325,8 @@ class MemoryInspectorOverlay(QWidget):
             scroll.setWidgetResizable(True)
             scroll.setFixedHeight(min(380, 42 * len(rows) + 20))
             scroll.setStyleSheet(
-                f"QScrollArea {{ border: 1px solid {C.BORDER}; border-radius: 6px; "
-                f"background: rgba(12, 15, 20, 180); }}"
+                f"QScrollArea {{ border: 1px solid {C.BORDER}; border-radius: 8px; "
+                f"background: rgba(10, 11, 16, 180); }}"
             )
             inner = QWidget()
             inner.setStyleSheet("background: transparent;")
@@ -1293,7 +1364,7 @@ class MemoryInspectorOverlay(QWidget):
                     QPushButton:hover {{
                         color: {C.RED};
                         border-color: {C.RED};
-                        background: rgba(255, 59, 48, 0.15);
+                        background: rgba(255, 90, 100, 0.15);
                     }}
                 """)
                 rm.clicked.connect(lambda _=False, c=r["category"], k=r["key"]: self._forget(c, k))
@@ -1316,7 +1387,7 @@ class MemoryInspectorOverlay(QWidget):
                 background: rgba(255, 255, 255, 0.05);
                 color: {C.TEXT_MED};
                 border: 1px solid {C.BORDER};
-                border-radius: 6px;
+                border-radius: 8px;
             }}
             QPushButton:hover {{
                 color: {C.WHITE};
@@ -1361,7 +1432,7 @@ def _logo_pixmap(size: int) -> QPixmap:
     return pix.scaled(size, size, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
 
 
-def _framed_logo(size: int, icon_size: int | None = None, *, bg: str = "rgba(18,18,18,240)",
+def _framed_logo(size: int, icon_size: int | None = None, *, bg: str = "rgba(10, 11, 16,240)",
                  border: str = None, radius: int | None = None, inset: int = 6) -> QFrame:
     border = border or C.BORDER_B
     radius = radius if radius is not None else max(10, size // 4)
@@ -1761,7 +1832,7 @@ class _GestureRenderCanvas(QWidget):
             pts = self._normalized_points(rect)
             if pts:
                 # soft glow
-                glow_pen = QPen(QColor(0, 229, 255, int(120 * self._skeleton_opacity)), 18,
+                glow_pen = QPen(QColor(*C.ACC_T, int(120 * self._skeleton_opacity)), 18,
                                 Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap)
                 painter.setPen(glow_pen)
                 for a, b in self.CONNECTIONS:
@@ -1777,7 +1848,7 @@ class _GestureRenderCanvas(QWidget):
                     radius = 7.0
                     grad = QRadialGradient(point, radius * 2.2)
                     grad.setColorAt(0.0, QColor(255, 255, 255, int(240 * self._skeleton_opacity)))
-                    grad.setColorAt(0.15, QColor(0, 229, 255, int(180 * self._skeleton_opacity)))
+                    grad.setColorAt(0.15, QColor(*C.ACC_T, int(180 * self._skeleton_opacity)))
                     grad.setColorAt(1.0, QColor(255, 160, 40, int(16 * self._skeleton_opacity)))
                     painter.setBrush(QBrush(grad))
                     painter.setPen(Qt.PenStyle.NoPen)
@@ -1803,10 +1874,10 @@ class GestureCameraPreview(QFrame):
             f"""
             QFrame#GestureCameraPreview {{
                 background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
-                    stop:0 rgba(9, 10, 14, 255),
-                    stop:1 rgba(3, 4, 7, 255));
+                    stop:0 rgba(10, 11, 16, 255),
+                    stop:1 rgba(10, 11, 16, 255));
                 border: 1px solid rgba(0, 229, 255, 0.24);
-                border-radius: 16px;
+                border-radius: 18px;
             }}
             QLabel {{ background: transparent; }}
             """
@@ -1845,18 +1916,18 @@ class GestureCameraPreview(QFrame):
 
         title = QLabel("HAND TRACKING")
         title.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
-        title.setStyleSheet(f"color: {C.WHITE}; letter-spacing: 1px;")
+        title.setStyleSheet(f"color: {C.WHITE};")
         header_row.addWidget(title)
         header_row.addStretch(1)
 
         self._status_dot = QLabel()
         self._status_dot.setFixedSize(12, 12)
-        self._status_dot.setStyleSheet("border-radius: 6px; background: #ffb347;")
+        self._status_dot.setStyleSheet("border-radius: 8px; background: #ff8a6b;")
         header_row.addWidget(self._status_dot)
 
         self._status_text = QLabel("SEARCHING")
         self._status_text.setFont(QFont("Segoe UI", 8, QFont.Weight.Bold))
-        self._status_text.setStyleSheet("color: #ffb347;")
+        self._status_text.setStyleSheet("color: #ff8a6b;")
         header_row.addWidget(self._status_text)
 
         self._invert_btn = QPushButton("⇄ Invert: ON")
@@ -1864,7 +1935,7 @@ class GestureCameraPreview(QFrame):
         self._invert_btn.setChecked(True)
         self._invert_btn.setFixedHeight(26)
         self._invert_btn.setStyleSheet(
-            "QPushButton { background: rgba(0, 229, 255, 0.15); color: #ffb347; border: 1px solid rgba(0, 229, 255, 0.4); border-radius: 6px; padding: 2px 8px; font-size: 11px; font-weight: bold; }"
+            "QPushButton { background: rgba(0, 229, 255, 0.15); color: #ff8a6b; border: 1px solid rgba(0, 229, 255, 0.4); border-radius: 8px; padding: 2px 8px; font-size: 11px; font-weight: bold; }"
             "QPushButton:!checked { background: rgba(255, 255, 255, 0.05); color: #888; border: 1px solid rgba(255, 255, 255, 0.15); }"
         )
         def _toggle_invert(checked):
@@ -1879,7 +1950,7 @@ class GestureCameraPreview(QFrame):
         self._sensitivity_select.setCurrentText("Medium")
         self._sensitivity_select.setFixedWidth(84)
         self._sensitivity_select.setStyleSheet(
-            "QComboBox { background: rgba(255,255,255,0.05); color: #f4f6f8; border: 1px solid rgba(0, 229, 255,0.24); border-radius: 8px; padding: 4px 8px; }"
+            "QComboBox { background: rgba(255,255,255,0.05); color: #e8ecf8; border: 1px solid rgba(0, 229, 255,0.24); border-radius: 10px; padding: 4px 8px; }"
             "QComboBox::drop-down { border: none; }")
         self._sensitivity_select.currentTextChanged.connect(self._set_sensitivity_level)
         header_row.addWidget(self._sensitivity_select)
@@ -1952,11 +2023,11 @@ class GestureCameraPreview(QFrame):
         self._status_value.setText(level.capitalize())
         colors = {
             "tracking": C.GREEN,
-            "searching": "#ffb347",
+            "searching": "#ff8a6b",
             "lost": C.RED,
         }
-        color = colors.get(level, "#ffb347")
-        self._status_dot.setStyleSheet(f"border-radius: 6px; background: {color};")
+        color = colors.get(level, "#ff8a6b")
+        self._status_dot.setStyleSheet(f"border-radius: 8px; background: {color};")
         self._status_text.setText(level.upper())
         self._status_text.setStyleSheet(f"color: {color};")
 
@@ -2273,7 +2344,7 @@ class GestureCameraPreview(QFrame):
         try:
             if hasattr(self, "_status_hint_label"):
                 self._status_hint_label.setText(text)
-                self._status_hint_label.setStyleSheet("color: #ffb347; font-weight: bold;")
+                self._status_hint_label.setStyleSheet("color: #ff8a6b; font-weight: bold;")
         except Exception:
             pass
 
@@ -2450,11 +2521,11 @@ class MetricBar(QWidget):
             p.setBrush(QBrush(bar_col))
             p.drawRoundedRect(QRectF(bar_x, bar_y, fill_w, bar_h), 2, 2)
 
-        p.setFont(QFont("Courier New", 7, QFont.Weight.Bold))
+        p.setFont(QFont("Segoe UI", 7, QFont.Weight.Bold))
         p.setPen(QPen(qcol(C.TEXT_DIM), 1))
         p.drawText(QRectF(8, 5, 50, 14), Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter, self._label)
 
-        p.setFont(QFont("Courier New", 9, QFont.Weight.Bold))
+        p.setFont(QFont("Segoe UI", 9, QFont.Weight.Bold))
         p.setPen(QPen(bar_col if self._text != "--" else qcol(C.TEXT_DIM), 1))
         p.drawText(QRectF(0, 4, W - 6, 16), Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter, self._text)
 
@@ -2465,20 +2536,20 @@ class MessageCard(QFrame):
         accent_map = {
             "user": (C.BORDER_B, C.WHITE),
             "assistant": (C.PRI, C.PRI),
-            "system": ("#4b8cff", "#4b8cff"),
-            "file": ("#35c96d", "#35c96d"),
-            "error": ("#ff8b3d", "#ff8b3d"),
+            "system": ("#5b8cff", "#5b8cff"),
+            "file": ("#6ec1ff", "#6ec1ff"),
+            "error": ("#ff8a6b", "#ff8a6b"),
         }
         border_col, left_col = accent_map.get(role, accent_map["system"])
         self.setStyleSheet(
             f"""
             QFrame#MessageCard {{
                 background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
-                    stop:0 rgba(13, 15, 20, 246),
-                    stop:1 rgba(5, 6, 9, 238));
+                    stop:0 rgba(10, 11, 16, 246),
+                    stop:1 rgba(10, 11, 16, 238));
                 border: 1px solid {border_col};
                 border-left: 3px solid {left_col};
-                border-radius: 12px;
+                border-radius: 14px;
             }}
             """
         )
@@ -2492,11 +2563,11 @@ class MessageCard(QFrame):
         avatar.setFont(QFont("Segoe UI", 11, QFont.Weight.Bold))
 
         palette = {
-            "user": ("#0d0f14", C.WHITE, C.BORDER_B),
+            "user": ("#181b25", C.WHITE, C.BORDER_B),
             "assistant": ("#12090a", C.RED, C.PRI),
-            "system": ("#101525", "#7cb7ff", "#4b8cff"),
-            "file": ("#0f1410", C.GREEN, "#35c96d"),
-            "error": ("#1a0f10", "#ffb074", "#ff8b3d"),
+            "system": ("#101525", "#7cb7ff", "#5b8cff"),
+            "file": ("#0f1410", C.GREEN, "#6ec1ff"),
+            "error": ("#1a0f10", "#ff8a6b", "#ff8a6b"),
         }
         bg, fg, border = palette.get(role, palette["system"])
         avatar.setStyleSheet(
@@ -2552,11 +2623,11 @@ class TaskCard(QFrame):
             f"""
             QFrame#TaskCard {{
                 background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
-                    stop:0 rgba(16, 18, 24, 230),
-                    stop:0.6 rgba(10, 12, 18, 210),
-                    stop:1 rgba(5, 7, 11, 200));
+                    stop:0 rgba(10, 11, 16, 230),
+                    stop:0.6 rgba(10, 11, 16, 210),
+                    stop:1 rgba(10, 11, 16, 200));
                 border: 1px solid rgba(255, 255, 255, 0.10);
-                border-radius: 16px;
+                border-radius: 18px;
             }}
             QFrame#TaskCard:hover {{
                 border: 1px solid rgba(0, 229, 255, 0.28);
@@ -2743,7 +2814,7 @@ def _markdown_to_html(text: str, role: str = "assistant") -> str:
     # Inline monospace code
     safe = re.sub(
         r"`([^`]+)`",
-        r'<code style="padding:1px 6px; border-radius:4px; background:rgba(0,229,255,0.12); color:#00e5ff; font-family:Consolas,monospace; font-size:11px;">\1</code>',
+        r'<code style="padding:1px 6px; border-radius: 4px; background:rgba(0,229,255,0.12); color:#00e5ff; font-family:Consolas,monospace; font-size:11px;">\1</code>',
         safe,
     )
     # Headers
@@ -2754,9 +2825,10 @@ def _markdown_to_html(text: str, role: str = "assistant") -> str:
     safe = re.sub(r"(?m)^[\*\-•] (.+)$", r'<div style="margin-left:8px; line-height:1.5;">• \1</div>', safe)
 
     safe = safe.replace("\n", "<br>")
+    safe = safe.replace("rgba(0,229,255,0.12)", f"rgba({C.ACC_RGB},0.16)").replace("#00e5ff", C.ACC)
     accent = C.WHITE if role == "assistant" else C.TEXT
     return (
-        f'<div style="color:{accent}; font-size:12px; line-height:1.5; white-space:normal;">'
+        f'<div style="color:{accent}; font-size:13px; line-height:1.6; white-space:normal;">'
         f"{safe}"
         "</div>"
     )
@@ -2770,7 +2842,7 @@ class AttachmentCard(QFrame):
             QFrame#AttachmentCard {
                 background: rgba(255,255,255,0.04);
                 border: 1px solid rgba(0, 229, 255,0.26);
-                border-radius: 10px;
+                border-radius: 12px;
             }
         """)
         lay = QHBoxLayout(self)
@@ -2802,7 +2874,7 @@ class EventCard(QFrame):
             QFrame#EventCard {{
                 background: rgba(255, 255, 255, 0.03);
                 border: 1px solid rgba(0, 229, 255,0.15);
-                border-radius: 12px;
+                border-radius: 14px;
             }}
             """
         )
@@ -2842,15 +2914,15 @@ class ArtifactCard(QFrame):
         self.setStyleSheet(
             """
             QFrame#ArtifactCard {
-                background: rgba(11, 12, 16, 230);
+                background: rgba(10, 11, 16, 230);
                 border: 1px solid rgba(0, 229, 255,0.22);
-                border-radius: 12px;
+                border-radius: 14px;
             }
             QPushButton {
                 background: rgba(255,255,255,0.04);
                 color: #ffffff;
                 border: 1px solid rgba(255,255,255,0.08);
-                border-radius: 8px;
+                border-radius: 10px;
                 padding: 6px 10px;
             }
             QPushButton:hover {
@@ -2957,9 +3029,9 @@ class CodeBlockWidget(QFrame):
         self.setObjectName("CodeBlockWidget")
         self.setStyleSheet("""
             QFrame#CodeBlockWidget {
-                background: rgba(6, 8, 12, 245);
+                background: rgba(10, 11, 16, 245);
                 border: 1px solid rgba(0, 229, 255, 0.28);
-                border-radius: 10px;
+                border-radius: 12px;
             }
         """)
         lay = QVBoxLayout(self)
@@ -2992,9 +3064,9 @@ class CodeBlockWidget(QFrame):
         self._copy_btn.setStyleSheet("""
             QPushButton {
                 background: rgba(255, 255, 255, 0.06);
-                color: #e2e8f0;
+                color: #c9d3ee;
                 border: 1px solid rgba(255, 255, 255, 0.15);
-                border-radius: 6px;
+                border-radius: 8px;
                 padding: 1px 8px;
             }
             QPushButton:hover {
@@ -3015,7 +3087,7 @@ class CodeBlockWidget(QFrame):
         self._code_edit.setStyleSheet("""
             QTextEdit {
                 background: transparent;
-                color: #e2e8f0;
+                color: #c9d3ee;
                 border: none;
                 selection-background-color: rgba(0, 229, 255, 0.35);
             }
@@ -3037,10 +3109,10 @@ class CodeBlockWidget(QFrame):
         self._copy_btn.setText("✓ Copied!")
         self._copy_btn.setStyleSheet("""
             QPushButton {
-                background: rgba(55, 255, 95, 0.25);
-                color: #37ff5f;
-                border: 1px solid #37ff5f;
-                border-radius: 6px;
+                background: rgba(110, 193, 255, 0.25);
+                color: #6ec1ff;
+                border: 1px solid #6ec1ff;
+                border-radius: 8px;
                 padding: 1px 8px;
             }
         """)
@@ -3051,9 +3123,9 @@ class CodeBlockWidget(QFrame):
         self._copy_btn.setStyleSheet("""
             QPushButton {
                 background: rgba(255, 255, 255, 0.06);
-                color: #e2e8f0;
+                color: #c9d3ee;
                 border: 1px solid rgba(255, 255, 255, 0.15);
-                border-radius: 6px;
+                border-radius: 8px;
                 padding: 1px 8px;
             }
             QPushButton:hover {
@@ -3082,9 +3154,9 @@ class ChatBubble(QFrame):
             self.setMinimumWidth(120)
 
         bg_style = (
-            "background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 rgba(20, 16, 12, 0.45), stop:1 rgba(10, 8, 5, 0.60)); border: 1px solid rgba(0, 229, 255, 0.25); border-radius: 16px;"
+            "background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 rgba(10, 11, 16, 0.45), stop:1 rgba(10, 11, 16, 0.60)); border: 1px solid rgba(0, 229, 255, 0.25); border-radius: 18px;"
             if role != "user"
-            else "background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 rgba(0, 229, 255, 0.22), stop:1 rgba(210, 140, 0, 0.32)); border: 1px solid rgba(0, 229, 255, 0.55); border-radius: 16px;"
+            else "background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 rgba(0, 229, 255, 0.22), stop:1 rgba(210, 140, 0, 0.32)); border: 1px solid rgba(0, 229, 255, 0.55); border-radius: 18px;"
         )
         self.setStyleSheet(f"QFrame#ChatBubble {{ {bg_style} }}")
 
@@ -3097,7 +3169,7 @@ class ChatBubble(QFrame):
         head.setSpacing(8)
 
         if role == "assistant":
-            avatar = _framed_logo(24, 24, bg="rgba(12,14,20,245)", border="rgba(0, 229, 255,0.50)", radius=12, inset=4)
+            avatar = _framed_logo(24, 24, bg="rgba(10, 11, 16,245)", border="rgba(0, 229, 255,0.50)", radius=12, inset=4)
             head.addWidget(avatar)
             name_lbl = QLabel(name or "Jarvis")
             name_lbl.setFont(QFont("Segoe UI", 9, QFont.Weight.Bold))
@@ -3159,7 +3231,7 @@ class ChatBubble(QFrame):
             lbl = QLabel(_markdown_to_html(text or "", self._role))
             lbl.setTextFormat(Qt.TextFormat.RichText)
             lbl.setWordWrap(True)
-            lbl.setStyleSheet("color: #f4f6f8; background: transparent;")
+            lbl.setStyleSheet("color: #e8ecf8; background: transparent;")
             self._content_lay.addWidget(lbl)
             return
 
@@ -3177,7 +3249,7 @@ class ChatBubble(QFrame):
                     lbl.setOpenExternalLinks(True)
                     lbl.setWordWrap(True)
                     lbl.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
-                    lbl.setStyleSheet("QLabel { background: transparent; border: none; color: #f4f6f8; padding: 0; margin: 0; }")
+                    lbl.setStyleSheet("QLabel { background: transparent; border: none; color: #e8ecf8; padding: 0; margin: 0; }")
                     self._content_lay.addWidget(lbl)
 
     def _start_typing_animation(self):
@@ -3211,7 +3283,7 @@ class HistoryConversationItem(QFrame):
             QFrame#HistoryConversationItem {
                 background: rgba(255,255,255,0.03);
                 border: 1px solid rgba(0, 229, 255,0.18);
-                border-radius: 10px;
+                border-radius: 12px;
             }
             QFrame#HistoryConversationItem:hover {
                 background: rgba(0, 229, 255,0.07);
@@ -3241,7 +3313,7 @@ class HistoryConversationItem(QFrame):
         row.addWidget(title_lbl)
         if pinned:
             pin = QLabel("PIN")
-            pin.setStyleSheet("color: #37ff5f; background: transparent; font: 700 7pt 'Courier New';")
+            pin.setStyleSheet("color: #6ec1ff; background: transparent; font: 700 7pt 'Segoe UI';")
             row.addWidget(pin)
         row.addStretch()
         stamp_lbl = QLabel(stamp)
@@ -3298,13 +3370,13 @@ class ConversationFeed(QScrollArea):
             QFrame {
                 background: rgba(255,255,255,0.03);
                 border: 1px solid rgba(0, 229, 255,0.16);
-                border-radius: 14px;
+                border-radius: 16px;
             }
             QPushButton {
                 background: rgba(255,255,255,0.04);
                 color: #ffffff;
                 border: 1px solid rgba(255,255,255,0.08);
-                border-radius: 12px;
+                border-radius: 14px;
                 padding: 8px 12px;
                 text-align: left;
             }
@@ -3394,15 +3466,15 @@ class ConversationFeed(QScrollArea):
         if "discord" in low and "connected" in low:
             title, icon, accent = "Discord Connected", "◉", "#5865F2"
         elif "presentation" in low:
-            title, icon, accent = "Presentation Generated", "▣", "#ff7a45"
+            title, icon, accent = "Presentation Generated", "▣", "#ff8a6b"
         elif "website" in low:
-            title, icon, accent = "Website Created", "⌂", "#37ff5f"
+            title, icon, accent = "Website Created", "⌂", "#6ec1ff"
         elif "spreadsheet" in low:
             title, icon, accent = "Spreadsheet Generated", "▦", "#6fd6ff"
         elif "browser" in low:
-            title, icon, accent = "Browser Automation Completed", "↗", "#ffbf00"
+            title, icon, accent = "Browser Automation Completed", "↗", "#ff8a6b"
         elif "organ" in low and "file" in low:
-            title, icon, accent = "File Organization Completed", "🗂", "#37ff5f"
+            title, icon, accent = "File Organization Completed", "🗂", "#6ec1ff"
         elif "screen" in low and "analysis" in low:
             title, icon, accent = "Screen Analysis Completed", "◫", "#6fd6ff"
         return EventCard(title, text, stamp, icon=icon, accent=accent, parent=self)
@@ -3480,8 +3552,8 @@ class TaskDock(QFrame):
             f"""
             QFrame#TaskDock {{
                 background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
-                    stop:0 rgba(7, 8, 12, 250),
-                    stop:1 rgba(3, 4, 6, 245));
+                    stop:0 rgba(10, 11, 16, 250),
+                    stop:1 rgba(10, 11, 16, 245));
                 border-left: 1px solid rgba(0, 229, 255, 0.55);
             }}
             """
@@ -3494,7 +3566,7 @@ class TaskDock(QFrame):
         header.setSpacing(8)
         self._title = QLabel("TASK WORKSPACE")
         self._title.setFont(QFont("Segoe UI", 14, QFont.Weight.Bold))
-        self._title.setStyleSheet(f"color: {C.PRI}; background: transparent; letter-spacing: 1px;")
+        self._title.setStyleSheet(f"color: {C.PRI}; background: transparent;")
         header.addWidget(self._title)
         header.addStretch()
 
@@ -3503,7 +3575,7 @@ class TaskDock(QFrame):
         self._toggle_btn.setFont(QFont("Segoe UI", 13, QFont.Weight.Bold))
         self._toggle_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self._toggle_btn.setStyleSheet(
-            f"QPushButton {{ background: rgba(12,14,18,245); color: {C.WHITE}; border: 1px solid {C.BORDER_B}; border-radius: 8px; }}"
+            f"QPushButton {{ background: rgba(10, 11, 16,245); color: {C.WHITE}; border: 1px solid {C.BORDER_B}; border-radius: 10px; }}"
             f"QPushButton:hover {{ color: {C.PRI}; border: 1px solid {C.PRI}; }}"
         )
         self._toggle_btn.clicked.connect(self.toggle_collapsed)
@@ -3528,7 +3600,7 @@ class TaskDock(QFrame):
         self._mini_hint.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._mini_hint.setFont(QFont("Segoe UI", 9, QFont.Weight.Bold))
         self._mini_hint.setStyleSheet(
-            f"color: {C.PRI}; background: rgba(12,14,18,245); border: 1px solid {C.BORDER_B}; border-radius: 8px; padding: 10px 4px;"
+            f"color: {C.PRI}; background: rgba(10, 11, 16,245); border: 1px solid {C.BORDER_B}; border-radius: 10px; padding: 10px 4px;"
         )
         self._mini_hint.setVisible(False)
         lay.addWidget(self._mini_hint)
@@ -3598,9 +3670,9 @@ class WorkspaceSidebar(QWidget):
             """
             QFrame#WorkspaceSidebarPanel {
                 background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
-                    stop:0 rgba(16, 18, 24, 230),
-                stop:0.55 rgba(10, 12, 18, 210),
-                stop:1 rgba(5, 7, 11, 200));
+                    stop:0 rgba(10, 11, 16, 230),
+                stop:0.55 rgba(10, 11, 16, 210),
+                stop:1 rgba(10, 11, 16, 200));
                 border: 1px solid rgba(255, 255, 255, 0.14);
                 border-radius: 22px;
             }
@@ -3628,7 +3700,7 @@ class WorkspaceSidebar(QWidget):
         header.setSpacing(10)
         self._title = QLabel("JARVIS WORKSPACE")
         self._title.setFont(QFont("Segoe UI", 12, QFont.Weight.Bold))
-        self._title.setStyleSheet("color: #FFFFFF; background: transparent; letter-spacing: 1px;")
+        self._title.setStyleSheet("color: #FFFFFF; background: transparent;")
         header.addWidget(self._title)
         header.addStretch()
         self._close_btn = QPushButton("✕")
@@ -3647,7 +3719,7 @@ class WorkspaceSidebar(QWidget):
             }
             QPushButton:hover {
                 background: rgba(255, 82, 82, 0.25);
-                color: #FF5252;
+                color: #ff5a64;
                 border: 1px solid rgba(255, 82, 82, 0.50);
             }
             """
@@ -3699,7 +3771,7 @@ class WorkspaceSidebar(QWidget):
                     background: rgba(0, 229, 255,0.16);
                     color: #FFFFFF;
                     border: 1px solid rgba(0, 229, 255,180);
-                    border-radius: 10px;
+                    border-radius: 12px;
                     padding: 0 14px;
                 }
             """
@@ -3708,7 +3780,7 @@ class WorkspaceSidebar(QWidget):
                 background: rgba(255,255,255,0.04);
                 color: rgba(255,255,255,0.82);
                 border: 1px solid rgba(255,255,255,0.08);
-                border-radius: 10px;
+                border-radius: 12px;
                 padding: 0 14px;
             }
             QPushButton:hover {
@@ -3744,7 +3816,7 @@ class WorkspaceSidebar(QWidget):
             QFrame {
                 background: rgba(0, 229, 255,0.05);
                 border: 1px solid rgba(0, 229, 255,0.24);
-                border-radius: 12px;
+                border-radius: 14px;
             }
             """
         )
@@ -3768,9 +3840,9 @@ class WorkspaceSidebar(QWidget):
         input_container = QFrame()
         input_container.setStyleSheet(
             f"QFrame {{ "
-            f"  background: rgba(14, 17, 24, 0.75); "
+            f"  background: rgba(10, 11, 16, 0.75); "
             f"  border: 1px solid rgba(0, 229, 255, 0.35); "
-            f"  border-radius: 14px; "
+            f"  border-radius: 16px; "
             f"}}"
         )
         input_row = QHBoxLayout(input_container)
@@ -3813,7 +3885,7 @@ class WorkspaceSidebar(QWidget):
         self._send_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self._send_btn.setToolTip("Send message (Enter)")
         self._send_btn.setStyleSheet(
-            f"QPushButton {{ background: rgba(0, 229, 255, 0.25); color: {C.PRI}; border: 1px solid rgba(0, 229, 255, 0.50); border-radius: 8px; font-weight: bold; font-size: 13px; }}"
+            f"QPushButton {{ background: rgba(0, 229, 255, 0.25); color: {C.PRI}; border: 1px solid rgba(0, 229, 255, 0.50); border-radius: 10px; font-weight: bold; font-size: 13px; }}"
             f"QPushButton:hover {{ background: rgba(0, 229, 255, 0.45); color: #FFFFFF; border-color: {C.PRI}; }}"
         )
         self._send_btn.clicked.connect(self._send)
@@ -3837,10 +3909,10 @@ class WorkspaceSidebar(QWidget):
         self._history_search.setStyleSheet(
             """
             QLineEdit {
-                background: rgba(10,11,14,205);
+                background: rgba(10, 11, 16,205);
                 color: #FFFFFF;
                 border: 1px solid rgba(0, 229, 255,100);
-                border-radius: 12px;
+                border-radius: 14px;
                 padding: 0 12px;
             }
             QLineEdit:focus {
@@ -3892,8 +3964,8 @@ class WorkspaceSidebar(QWidget):
 
     def _group_label(self, title: str) -> QLabel:
         lbl = QLabel(title.upper())
-        lbl.setFont(QFont("Courier New", 8, QFont.Weight.Bold))
-        lbl.setStyleSheet("color: rgba(255,255,255,0.58); background: transparent; letter-spacing: 1px;")
+        lbl.setFont(QFont("Segoe UI", 8, QFont.Weight.Bold))
+        lbl.setStyleSheet("color: rgba(255,255,255,0.58); background: transparent;")
         return lbl
 
     def _clear_layout(self, layout: QVBoxLayout):
@@ -3928,7 +4000,7 @@ class WorkspaceSidebar(QWidget):
                         QFrame#HistoryConversationItem {
                             background: rgba(0, 229, 255,0.10);
                             border: 1px solid rgba(0, 229, 255,0.55);
-                            border-radius: 10px;
+                            border-radius: 12px;
                         }
                         QFrame#HistoryConversationItem:hover {
                             background: rgba(0, 229, 255,0.14);
@@ -4269,7 +4341,7 @@ class InlineChatWorkspace(QFrame):
                 background: rgba(255,255,255,0.04);
                 color: rgba(255,255,255,0.82);
                 border: 1px solid rgba(255,255,255,0.08);
-                border-radius: 10px;
+                border-radius: 12px;
                 padding: 0 14px;
             }
             QPushButton:hover {
@@ -4286,18 +4358,18 @@ class InlineChatWorkspace(QFrame):
         self._history_btn.setChecked(index == 1)
         if index == 0:
             self._chat_btn.setStyleSheet("""
-                QPushButton { background: rgba(0, 229, 255,0.16); color: #FFFFFF; border: 1px solid rgba(0, 229, 255,180); border-radius: 10px; padding: 0 14px; }
+                QPushButton { background: rgba(0, 229, 255,0.16); color: #FFFFFF; border: 1px solid rgba(0, 229, 255,180); border-radius: 12px; padding: 0 14px; }
             """)
             self._history_btn.setStyleSheet("""
-                QPushButton { background: rgba(255,255,255,0.04); color: rgba(255,255,255,0.82); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 0 14px; }
+                QPushButton { background: rgba(255,255,255,0.04); color: rgba(255,255,255,0.82); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 0 14px; }
                 QPushButton:hover { background: rgba(0, 229, 255,0.08); border: 1px solid rgba(0, 229, 255,0.30); }
             """)
         else:
             self._history_btn.setStyleSheet("""
-                QPushButton { background: rgba(0, 229, 255,0.16); color: #FFFFFF; border: 1px solid rgba(0, 229, 255,180); border-radius: 10px; padding: 0 14px; }
+                QPushButton { background: rgba(0, 229, 255,0.16); color: #FFFFFF; border: 1px solid rgba(0, 229, 255,180); border-radius: 12px; padding: 0 14px; }
             """)
             self._chat_btn.setStyleSheet("""
-                QPushButton { background: rgba(255,255,255,0.04); color: rgba(255,255,255,0.82); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 0 14px; }
+                QPushButton { background: rgba(255,255,255,0.04); color: rgba(255,255,255,0.82); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 0 14px; }
                 QPushButton:hover { background: rgba(0, 229, 255,0.08); border: 1px solid rgba(0, 229, 255,0.30); }
             """)
 
@@ -4317,7 +4389,7 @@ class InlineChatWorkspace(QFrame):
                 background: rgba(0, 229, 255, 0.12);
                 color: rgba(255, 255, 255, 0.85);
                 border: 1px solid rgba(0, 229, 255, 0.25);
-                border-radius: 12px;
+                border-radius: 14px;
                 padding: 4px 14px;
             }
         """)
@@ -4335,7 +4407,7 @@ class InlineChatWorkspace(QFrame):
             QFrame {
                 background: rgba(0, 229, 255,0.05);
                 border: 1px solid rgba(0, 229, 255,0.24);
-                border-radius: 12px;
+                border-radius: 14px;
             }
         """)
         mlay = QVBoxLayout(self._memory_frame)
@@ -4357,9 +4429,9 @@ class InlineChatWorkspace(QFrame):
         input_container = QFrame()
         input_container.setStyleSheet(
             f"QFrame {{ "
-            f"  background: rgba(14, 17, 24, 0.40); "
+            f"  background: rgba(10, 11, 16, 0.40); "
             f"  border: 1px solid rgba(0, 229, 255, 0.32); "
-            f"  border-radius: 12px; "
+            f"  border-radius: 14px; "
             f"}}"
         )
         input_row = QHBoxLayout(input_container)
@@ -4447,7 +4519,7 @@ class InlineChatWorkspace(QFrame):
         self._search.setPlaceholderText("Search conversations...")
         self._search.setFont(QFont("Segoe UI", 10))
         self._search.setFixedHeight(38)
-        self._search.setStyleSheet("QLineEdit { background: rgba(10,11,14,205); color: #FFFFFF; border: 1px solid rgba(0, 229, 255,100); border-radius: 12px; padding: 0 12px; }")
+        self._search.setStyleSheet("QLineEdit { background: rgba(10, 11, 16,205); color: #FFFFFF; border: 1px solid rgba(0, 229, 255,100); border-radius: 14px; padding: 0 12px; }")
         self._search.textChanged.connect(self._refresh_history)
         lay.addWidget(self._search)
         self._history_scroll = QScrollArea()
@@ -4498,8 +4570,8 @@ class InlineChatWorkspace(QFrame):
 
     def _group_label(self, title: str) -> QLabel:
         lbl = QLabel(title.upper())
-        lbl.setFont(QFont("Courier New", 8, QFont.Weight.Bold))
-        lbl.setStyleSheet("color: rgba(255,255,255,0.58); background: transparent; letter-spacing: 1px;")
+        lbl.setFont(QFont("Segoe UI", 8, QFont.Weight.Bold))
+        lbl.setStyleSheet("color: rgba(255,255,255,0.58); background: transparent;")
         return lbl
 
     def _show_memories(self, memories: list[dict[str, object]]):
@@ -4676,7 +4748,7 @@ class LauncherControlPanel(QDialog):
         frame = QFrame()
         frame.setStyleSheet("""
             QFrame {
-                background: rgba(15,15,20,235);
+                background: rgba(10, 11, 16,235);
                 border: 1px solid rgba(0,191,255,60);
                 border-radius: 18px;
             }
@@ -4689,7 +4761,7 @@ class LauncherControlPanel(QDialog):
 
         title = QLabel("JARVIS CONTROL")
         title.setFont(QFont("Segoe UI", 13, QFont.Weight.Bold))
-        title.setStyleSheet("color: #FFFFFF; background: transparent; letter-spacing: 1px;")
+        title.setStyleSheet("color: #FFFFFF; background: transparent;")
         lay.addWidget(title)
 
         sub = QLabel("Desktop launcher controls")
@@ -4709,7 +4781,7 @@ class LauncherControlPanel(QDialog):
                     background: rgba(255,255,255,0.05);
                     color: #FFFFFF;
                     border: 1px solid rgba(255,255,255,0.08);
-                    border-radius: 12px;
+                    border-radius: 14px;
                     padding: 6px 12px;
                     text-align: left;
                 }
@@ -4768,7 +4840,7 @@ class LauncherControlPanel(QDialog):
         lay = QVBoxLayout(box)
         lay.setContentsMargins(0, 0, 0, 0)
         frame = QFrame()
-        frame.setStyleSheet("QFrame { background: rgba(15,15,20,240); border: 1px solid rgba(0,191,255,60); border-radius: 16px; }")
+        frame.setStyleSheet("QFrame { background: rgba(10, 11, 16,240); border: 1px solid rgba(0,191,255,60); border-radius: 18px; }")
         lay.addWidget(frame)
         flay = QVBoxLayout(frame)
         flay.setContentsMargins(18, 16, 18, 16)
@@ -4785,7 +4857,7 @@ class LauncherControlPanel(QDialog):
         for btn in (cancel, hide):
             btn.setCursor(Qt.CursorShape.PointingHandCursor)
             btn.setMinimumHeight(34)
-            btn.setStyleSheet("QPushButton { background: rgba(255,255,255,0.05); color: #FFFFFF; border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; } QPushButton:hover { border: 1px solid #00BFFF; }")
+            btn.setStyleSheet("QPushButton { background: rgba(255,255,255,0.05); color: #FFFFFF; border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; } QPushButton:hover { border: 1px solid #00BFFF; }")
         cancel.clicked.connect(box.reject)
         hide.clicked.connect(box.accept)
         row.addWidget(cancel)
@@ -4809,10 +4881,10 @@ class SmallPanelCard(QFrame):
             f"""
             QFrame#SmallPanelCard {{
                 background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
-                    stop:0 rgba(16, 18, 24, 230),
-                    stop:1 rgba(9, 11, 15, 210));
+                    stop:0 rgba(10, 11, 16, 230),
+                    stop:1 rgba(10, 11, 16, 210));
                 border: 1px solid rgba(255, 255, 255, 0.16);
-                border-radius: 14px;
+                border-radius: 16px;
             }}
             """
         )
@@ -4821,8 +4893,8 @@ class SmallPanelCard(QFrame):
         lay.setSpacing(6)
 
         t = QLabel(title.upper())
-        t.setFont(QFont("Courier New", 8, QFont.Weight.Bold))
-        t.setStyleSheet(f"color: {C.PRI_DIM}; background: transparent; letter-spacing: 1px;")
+        t.setFont(QFont("Segoe UI", 8, QFont.Weight.Bold))
+        t.setStyleSheet(f"color: {C.PRI_DIM}; background: transparent;")
         lay.addWidget(t)
 
         self._body_lbl = QLabel(body)
@@ -4861,7 +4933,7 @@ class JarvisTelemetryWing(QFrame):
         header_row.setSpacing(6)
 
         self._hud_tag = QLabel("⚡ [OPERATIONS]")
-        self._hud_tag.setFont(QFont("Courier New", 8, QFont.Weight.Bold))
+        self._hud_tag.setFont(QFont("Segoe UI", 8, QFont.Weight.Bold))
         header_row.addWidget(self._hud_tag)
 
         self._tool_tag = QLabel("TELEMETRY")
@@ -4900,21 +4972,21 @@ class JarvisTelemetryWing(QFrame):
         self._pulse_dot.setFont(QFont("Segoe UI", 8, QFont.Weight.Bold))
         step_hdr.addWidget(self._pulse_dot)
         self._step_status_lbl = QLabel("ACTIVE STEP")
-        self._step_status_lbl.setFont(QFont("Courier New", 7, QFont.Weight.Bold))
+        self._step_status_lbl.setFont(QFont("Segoe UI", 7, QFont.Weight.Bold))
         step_hdr.addWidget(self._step_status_lbl)
         step_hdr.addStretch()
         step_lay.addLayout(step_hdr)
 
         self._step_text_lbl = QLabel("Initializing operation...")
         self._step_text_lbl.setFont(QFont("Segoe UI", 9))
-        self._step_text_lbl.setStyleSheet("color: #E2E8F0;")
+        self._step_text_lbl.setStyleSheet("color: #c9d3ee;")
         self._step_text_lbl.setWordWrap(True)
         step_lay.addWidget(self._step_text_lbl)
         lay.addWidget(self._step_box)
 
         # Sources / References List
         self._sources_hdr = QLabel("LIVE SOURCES & CHANNELS")
-        self._sources_hdr.setFont(QFont("Courier New", 8, QFont.Weight.Bold))
+        self._sources_hdr.setFont(QFont("Segoe UI", 8, QFont.Weight.Bold))
         lay.addWidget(self._sources_hdr)
 
         self._sources_container = QWidget()
@@ -4929,7 +5001,7 @@ class JarvisTelemetryWing(QFrame):
         # Bottom 10-Second Fuse
         fuse_row = QHBoxLayout()
         self._fuse_lbl = QLabel("10s")
-        self._fuse_lbl.setFont(QFont("Courier New", 7, QFont.Weight.Bold))
+        self._fuse_lbl.setFont(QFont("Segoe UI", 7, QFont.Weight.Bold))
         fuse_row.addWidget(self._fuse_lbl)
         self._fuse_bar = QProgressBar()
         self._fuse_bar.setRange(0, 100)
@@ -4969,9 +5041,9 @@ class JarvisTelemetryWing(QFrame):
         self.setStyleSheet(f"""
             QFrame#JarvisTelemetryWing {{
                 background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
-                    stop:0 rgba(10, 15, 24, 238),
-                    stop:0.6 rgba(6, 10, 18, 222),
-                    stop:1 rgba(3, 5, 12, 212));
+                    stop:0 rgba(10, 11, 16, 238),
+                    stop:0.6 rgba(10, 11, 16, 222),
+                    stop:1 rgba(10, 11, 16, 212));
                 border: 1px solid rgba({r}, {g}, {b}, 0.45);
                 border-radius: 18px;
             }}
@@ -4981,7 +5053,7 @@ class JarvisTelemetryWing(QFrame):
             QPushButton {{
                 background: rgba({r}, {g}, {b}, 0.10);
                 border: 1px solid rgba({r}, {g}, {b}, 0.28);
-                border-radius: 6px;
+                border-radius: 8px;
                 color: #ffffff;
                 font-family: 'Segoe UI';
                 font-size: 11px;
@@ -4995,7 +5067,7 @@ class JarvisTelemetryWing(QFrame):
             }}
         """)
 
-        self._hud_tag.setStyleSheet(f"color: {pri}; letter-spacing: 1px; font-weight: bold;")
+        self._hud_tag.setStyleSheet(f"color: {pri}; font-weight: bold;")
         self._tool_tag.setStyleSheet(f"""
             background: rgba({r}, {g}, {b}, 0.14);
             color: {pri};
@@ -5007,11 +5079,11 @@ class JarvisTelemetryWing(QFrame):
         self._step_box.setStyleSheet(f"""
             background: rgba({r}, {g}, {b}, 0.07);
             border: 1px solid rgba({r}, {g}, {b}, 0.22);
-            border-radius: 10px;
+            border-radius: 12px;
         """)
         self._pulse_dot.setStyleSheet(f"color: {pri}; font-weight: bold;")
         self._step_status_lbl.setStyleSheet(f"color: rgba({r}, {g}, {b}, 0.85); font-weight: bold;")
-        self._sources_hdr.setStyleSheet("color: rgba(255, 255, 255, 0.60); letter-spacing: 0.5px; font-weight: bold;")
+        self._sources_hdr.setStyleSheet("color: rgba(255, 255, 255, 0.60); font-weight: bold;")
         self._fuse_lbl.setStyleSheet(f"color: rgba({r}, {g}, {b}, 0.75); font-weight: bold;")
         self._fuse_bar.setStyleSheet(f"""
             QProgressBar {{
@@ -5082,9 +5154,9 @@ class JarvisTelemetryWing(QFrame):
                 pill.setFont(QFont("Segoe UI", 8))
                 pill.setStyleSheet(f"""
                     background: rgba(255, 255, 255, 0.05);
-                    color: #E2E8F0;
+                    color: #c9d3ee;
                     border: 1px solid rgba({r}, {g}, {b}, 0.25);
-                    border-radius: 6px;
+                    border-radius: 8px;
                     padding: 3px 7px;
                 """)
                 self._sources_lay.addWidget(pill)
@@ -5175,7 +5247,7 @@ class JarvisResultWing(QFrame):
         header_row.setSpacing(6)
 
         self._hud_tag = QLabel("✨ [DELIVERABLE]")
-        self._hud_tag.setFont(QFont("Courier New", 8, QFont.Weight.Bold))
+        self._hud_tag.setFont(QFont("Segoe UI", 8, QFont.Weight.Bold))
         header_row.addWidget(self._hud_tag)
 
         self._status_badge = QLabel("COMPLETED")
@@ -5266,7 +5338,7 @@ class JarvisResultWing(QFrame):
         # Bottom 10-Second Fuse
         fuse_row = QHBoxLayout()
         self._fuse_lbl = QLabel("10s")
-        self._fuse_lbl.setFont(QFont("Courier New", 7, QFont.Weight.Bold))
+        self._fuse_lbl.setFont(QFont("Segoe UI", 7, QFont.Weight.Bold))
         fuse_row.addWidget(self._fuse_lbl)
         self._fuse_bar = QProgressBar()
         self._fuse_bar.setRange(0, 100)
@@ -5307,9 +5379,9 @@ class JarvisResultWing(QFrame):
         self.setStyleSheet(f"""
             QFrame#JarvisResultWing {{
                 background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
-                    stop:0 rgba(14, 18, 26, 240),
-                    stop:0.6 rgba(9, 13, 20, 225),
-                    stop:1 rgba(4, 7, 12, 215));
+                    stop:0 rgba(10, 11, 16, 240),
+                    stop:0.6 rgba(10, 11, 16, 225),
+                    stop:1 rgba(10, 11, 16, 215));
                 border: 1px solid rgba({r}, {g}, {b}, 0.45);
                 border-radius: 18px;
             }}
@@ -5319,7 +5391,7 @@ class JarvisResultWing(QFrame):
             QPushButton {{
                 background: rgba({r}, {g}, {b}, 0.10);
                 border: 1px solid rgba({r}, {g}, {b}, 0.28);
-                border-radius: 6px;
+                border-radius: 8px;
                 color: #ffffff;
                 font-family: 'Segoe UI';
                 font-size: 11px;
@@ -5333,7 +5405,7 @@ class JarvisResultWing(QFrame):
             }}
         """)
 
-        self._hud_tag.setStyleSheet(f"color: {pri}; letter-spacing: 1px; font-weight: bold;")
+        self._hud_tag.setStyleSheet(f"color: {pri}; font-weight: bold;")
         self._status_badge.setStyleSheet(f"""
             background: rgba({r}, {g}, {b}, 0.15);
             color: {pri};
@@ -5345,7 +5417,7 @@ class JarvisResultWing(QFrame):
         self._file_card.setStyleSheet(f"""
             background: rgba(255, 255, 255, 0.05);
             border: 1px solid rgba({r}, {g}, {b}, 0.25);
-            border-radius: 10px;
+            border-radius: 12px;
         """)
         self._fuse_lbl.setStyleSheet(f"color: rgba({r}, {g}, {b}, 0.75); font-weight: bold;")
         self._fuse_bar.setStyleSheet(f"""
@@ -5438,7 +5510,7 @@ class JarvisResultWing(QFrame):
         for b in bullets[:6]:
             b_lbl = QLabel(f"• {b}")
             b_lbl.setFont(QFont("Segoe UI", 9))
-            b_lbl.setStyleSheet("color: #E2E8F0;")
+            b_lbl.setStyleSheet("color: #c9d3ee;")
             b_lbl.setWordWrap(True)
             self._bullets_lay.addWidget(b_lbl)
 
@@ -5541,10 +5613,10 @@ class StatCard(QFrame):
             f"""
             QFrame#StatCard {{
                 background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
-                    stop:0 rgba(18, 20, 26, 240),
-                    stop:1 rgba(8, 10, 14, 220));
+                    stop:0 rgba(10, 11, 16, 240),
+                    stop:1 rgba(10, 11, 16, 220));
                 border: 1px solid rgba(255, 255, 255, 0.14);
-                border-radius: 16px;
+                border-radius: 18px;
             }}
             """
         )
@@ -5552,7 +5624,7 @@ class StatCard(QFrame):
         lay.setContentsMargins(12, 10, 12, 10)
         lay.setSpacing(4)
         lbl = QLabel(label.upper())
-        lbl.setFont(QFont("Courier New", 7, QFont.Weight.Bold))
+        lbl.setFont(QFont("Segoe UI", 7, QFont.Weight.Bold))
         lbl.setStyleSheet(f"color: {C.TEXT_DIM}; background: transparent;")
         val = QLabel(value)
         val.setFont(QFont("Segoe UI", 15, QFont.Weight.Bold))
@@ -5660,11 +5732,11 @@ class LogWidget(QScrollArea):
         return "system", "System", raw
 
 _FILE_ICONS = {
-    "image":   ("ðŸ-¼", "#00d4ff"), "video":   ("ðŸŽ¬", "#ff6b00"),
-    "audio":   ("ðŸŽµ", "#cc44ff"), "pdf":     ("ðŸ“„", "#ff4444"),
+    "image":   ("ðŸ-¼", "#00d4ff"), "video":   ("ðŸŽ¬", "#ff8a6b"),
+    "audio":   ("ðŸŽµ", "#8f8cff"), "pdf":     ("ðŸ“„", "#ff5a64"),
     "word":    ("ðŸ“", "#4488ff"), "excel":   ("ðŸ“Š", "#44bb44"),
-    "code":    ("ðŸ’»", "#ffcc00"), "archive": ("ðŸ“¦", "#ff8844"),
-    "pptx":    ("ðŸ“Š", "#ff6622"), "text":    ("ðŸ“ƒ", "#aaaaaa"),
+    "code":    ("ðŸ’»", "#ff8a6b"), "archive": ("ðŸ“¦", "#ff8a6b"),
+    "pptx":    ("ðŸ“Š", "#ff8a6b"), "text":    ("ðŸ“ƒ", "#aaaaaa"),
     "data":    ("ðŸ”§", "#88ddff"), "unknown": ("ðŸ“Ž", "#888888"),
 }
 _EXT_TO_CAT = {
@@ -5813,21 +5885,21 @@ class _DropCanvas(QWidget):
         p.drawLine(QPointF(cx - 8, cy - 6), QPointF(cx, cy - 14))
         p.drawLine(QPointF(cx + 8, cy - 6), QPointF(cx, cy - 14))
         p.drawLine(QPointF(cx - 14, cy + 4), QPointF(cx + 14, cy + 4))
-        p.setFont(QFont("Courier New", 8))
+        p.setFont(QFont("Segoe UI", 8))
         p.setPen(QPen(qcol(C.PRI_DIM if not hover else C.TEXT), 1))
         p.drawText(QRectF(0, cy + 8, W, 16), Qt.AlignmentFlag.AlignCenter,
                    "Drop file here  or  Click to Browse")
-        p.setFont(QFont("Courier New", 7))
+        p.setFont(QFont("Segoe UI", 7))
         p.setPen(QPen(qcol("#1a4a5a"), 1))
         p.drawText(QRectF(0, cy + 24, W, 14), Qt.AlignmentFlag.AlignCenter,
                    "Images · Video · Audio · PDF · Docs · Code · Data")
 
     def _paint_drag_over(self, p, W, H):
         cx, cy = W / 2, H / 2
-        p.setFont(QFont("Courier New", 20))
+        p.setFont(QFont("Segoe UI", 20))
         p.setPen(QPen(qcol(C.PRI), 1))
         p.drawText(QRectF(0, cy - 24, W, 32), Qt.AlignmentFlag.AlignCenter, "⬇")
-        p.setFont(QFont("Courier New", 8, QFont.Weight.Bold))
+        p.setFont(QFont("Segoe UI", 8, QFont.Weight.Bold))
         p.setPen(QPen(qcol(C.PRI), 1))
         p.drawText(QRectF(0, cy + 12, W, 16), Qt.AlignmentFlag.AlignCenter, "Release to load")
 
@@ -5846,26 +5918,26 @@ class _DropCanvas(QWidget):
         tx = block_x + block_w + 6
         tw = W - tx - 38
 
-        p.setFont(QFont("Courier New", 8, QFont.Weight.Bold))
+        p.setFont(QFont("Segoe UI", 8, QFont.Weight.Bold))
         p.setPen(QPen(qcol(C.WHITE), 1))
         name = path.name if len(path.name) <= 34 else path.name[:31] + "..."
         p.drawText(QRectF(tx, H * 0.18, tw, 16),
                    Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter, name)
 
-        p.setFont(QFont("Courier New", 7))
+        p.setFont(QFont("Segoe UI", 7))
         p.setPen(QPen(qcol(C.TEXT_DIM), 1))
         p.drawText(QRectF(tx, H * 0.18 + 18, tw, 14),
                    Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter,
                    f"{ext_str}  ·  {size_str}")
 
-        p.setFont(QFont("Courier New", 6))
+        p.setFont(QFont("Segoe UI", 6))
         p.setPen(QPen(qcol("#1e5c6a"), 1))
         par = str(path.parent)
         if len(par) > 42: par = "…" + par[-41:]
         p.drawText(QRectF(tx, H * 0.18 + 34, tw, 12),
                    Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter, par)
 
-        p.setFont(QFont("Courier New", 9, QFont.Weight.Bold))
+        p.setFont(QFont("Segoe UI", 9, QFont.Weight.Bold))
         p.setPen(QPen(qcol(C.RED, 180), 1))
         p.drawText(QRectF(W - 34, 0, 28, H), Qt.AlignmentFlag.AlignCenter, "✖")
 
@@ -5920,7 +5992,7 @@ class SetupOverlay(QWidget):
         ring_grad = QRadialGradient(cx, cy, 320.0)
         ring_grad.setColorAt(0.0, QColor(0, 0, 0, 0))
         ring_grad.setColorAt(0.7, QColor(0, 0, 0, 0))
-        ring_grad.setColorAt(0.85, QColor(0, 229, 255, 12))
+        ring_grad.setColorAt(0.85, QColor(*C.ACC_T, 12))
         ring_grad.setColorAt(1.0, QColor(0, 0, 0, 0))
         painter.setBrush(QBrush(ring_grad))
         painter.setPen(Qt.PenStyle.NoPen)
@@ -5950,9 +6022,9 @@ class SetupOverlay(QWidget):
         self._s1_container = QFrame()
         self._s1_container.setStyleSheet("""
             QFrame {
-                background: rgba(5, 8, 12, 180);
+                background: rgba(10, 11, 16, 180);
                 border: 1px solid rgba(0, 229, 255, 0.08);
-                border-radius: 16px;
+                border-radius: 18px;
             }
         """)
         self._s1_container.setFixedWidth(420)
@@ -5974,11 +6046,11 @@ class SetupOverlay(QWidget):
     def _start_stage1(self):
         self._s1_lines = [
             ("Scanning local configuration...", "#00e5ff", False),
-            ("✓  " + self._detected.capitalize() + " detected", "#37ff5f", False),
-            ("✓  GPU acceleration enabled", "#37ff5f", False),
-            ("✓  Network online", "#37ff5f", False),
+            ("✓  " + self._detected.capitalize() + " detected", "#6ec1ff", False),
+            ("✓  GPU acceleration enabled", "#6ec1ff", False),
+            ("✓  Network online", "#6ec1ff", False),
             ("Looking for AI provider...", "#00e5ff", False),
-            ("✕  No provider configured", "#ff3b30", True),
+            ("✕  No provider configured", "#ff5a64", True),
             ("", "", False),
             ("One final step is required\nbefore I can think.", "#ffffff", True),
         ]
@@ -6029,7 +6101,7 @@ class SetupOverlay(QWidget):
         title = QLabel("DEFINE YOUR ASSISTANT")
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         title.setFont(QFont("Segoe UI", 12, QFont.Weight.Bold))
-        title.setStyleSheet("color: rgba(255,255,255,0.7); background: transparent; letter-spacing: 2px;")
+        title.setStyleSheet("color: rgba(255,255,255,0.7); background: transparent;")
         lay.addWidget(title)
         
         sub = QLabel("Every assistant needs an identity.")
@@ -6043,14 +6115,14 @@ class SetupOverlay(QWidget):
         form_lay.setSpacing(16)
         
         lbl_ast = QLabel("Assistant Name")
-        lbl_ast.setStyleSheet("color: #ffaa30;")
+        lbl_ast.setStyleSheet("color: #ff8a6b;")
         self._inp_ast = QLineEdit(identity.get_assistant_name())
         self._inp_ast.setStyleSheet("background: rgba(255,255,255,0.1); color: #fff; padding: 6px; border-radius: 4px;")
         form_lay.addWidget(lbl_ast, 0, 0)
         form_lay.addWidget(self._inp_ast, 0, 1)
 
         lbl_app = QLabel("Application Name")
-        lbl_app.setStyleSheet("color: #ffaa30;")
+        lbl_app.setStyleSheet("color: #ff8a6b;")
         self._inp_app = QLineEdit(identity.get_application_name())
         self._inp_app.setStyleSheet("background: rgba(255,255,255,0.1); color: #fff; padding: 6px; border-radius: 4px;")
         form_lay.addWidget(lbl_app, 1, 0)
@@ -6063,7 +6135,7 @@ class SetupOverlay(QWidget):
 
         btn = QPushButton("CONTINUE →")
         btn.setFixedSize(160, 40)
-        btn.setStyleSheet("background: rgba(255, 170, 48, 0.2); color: #ffaa30; border: 1px solid #ffaa30; border-radius: 20px;")
+        btn.setStyleSheet("background: rgba(255, 170, 48, 0.2); color: #ff8a6b; border: 1px solid #ff8a6b; border-radius: 20px;")
         btn.clicked.connect(self._save_identity_and_next)
         lay.addWidget(btn, 0, Qt.AlignmentFlag.AlignCenter)
         
@@ -6086,7 +6158,7 @@ class SetupOverlay(QWidget):
         title = QLabel("WHO AM I ASSISTING?")
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         title.setFont(QFont("Segoe UI", 12, QFont.Weight.Bold))
-        title.setStyleSheet("color: rgba(255,255,255,0.7); background: transparent; letter-spacing: 2px;")
+        title.setStyleSheet("color: rgba(255,255,255,0.7); background: transparent;")
         lay.addWidget(title)
         
         sub = QLabel("Tell me a little about yourself so I can work better with you.")
@@ -6100,14 +6172,14 @@ class SetupOverlay(QWidget):
         form_lay.setSpacing(16)
         
         lbl_own = QLabel("Your Name")
-        lbl_own.setStyleSheet("color: #ffaa30;")
+        lbl_own.setStyleSheet("color: #ff8a6b;")
         self._inp_own = QLineEdit(identity.get_owner_name())
         self._inp_own.setStyleSheet("background: rgba(255,255,255,0.1); color: #fff; padding: 6px; border-radius: 4px;")
         form_lay.addWidget(lbl_own, 0, 0)
         form_lay.addWidget(self._inp_own, 0, 1)
 
         lbl_role = QLabel("Your Role")
-        lbl_role.setStyleSheet("color: #ffaa30;")
+        lbl_role.setStyleSheet("color: #ff8a6b;")
         self._inp_role = QLineEdit(identity.get_owner_role())
         self._inp_role.setPlaceholderText("e.g. Student, Developer")
         self._inp_role.setStyleSheet("background: rgba(255,255,255,0.1); color: #fff; padding: 6px; border-radius: 4px;")
@@ -6121,7 +6193,7 @@ class SetupOverlay(QWidget):
 
         btn = QPushButton("CONTINUE →")
         btn.setFixedSize(160, 40)
-        btn.setStyleSheet("background: rgba(255, 170, 48, 0.2); color: #ffaa30; border: 1px solid #ffaa30; border-radius: 20px;")
+        btn.setStyleSheet("background: rgba(255, 170, 48, 0.2); color: #ff8a6b; border: 1px solid #ff8a6b; border-radius: 20px;")
         btn.clicked.connect(self._save_owner_and_next)
         lay.addWidget(btn, 0, Qt.AlignmentFlag.AlignCenter)
         
@@ -6144,7 +6216,7 @@ class SetupOverlay(QWidget):
         title = QLabel("HOW SHOULD I ASSIST YOU?")
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         title.setFont(QFont("Segoe UI", 12, QFont.Weight.Bold))
-        title.setStyleSheet("color: rgba(255,255,255,0.7); background: transparent; letter-spacing: 2px;")
+        title.setStyleSheet("color: rgba(255,255,255,0.7); background: transparent;")
         lay.addWidget(title)
         lay.addSpacing(20)
 
@@ -6157,7 +6229,7 @@ class SetupOverlay(QWidget):
         
         sub = QLabel("Custom Instructions (Optional)")
         sub.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        sub.setStyleSheet("color: #ffaa30; margin-top: 10px;")
+        sub.setStyleSheet("color: #ff8a6b; margin-top: 10px;")
         lay.addWidget(sub)
         
         self._inp_custom = QTextEdit(identity.get_custom_instructions())
@@ -6168,7 +6240,7 @@ class SetupOverlay(QWidget):
         lay.addSpacing(20)
         btn = QPushButton("CONTINUE →")
         btn.setFixedSize(160, 40)
-        btn.setStyleSheet("background: rgba(255, 170, 48, 0.2); color: #ffaa30; border: 1px solid #ffaa30; border-radius: 20px;")
+        btn.setStyleSheet("background: rgba(255, 170, 48, 0.2); color: #ff8a6b; border: 1px solid #ff8a6b; border-radius: 20px;")
         btn.clicked.connect(self._save_behavior_and_next)
         lay.addWidget(btn, 0, Qt.AlignmentFlag.AlignCenter)
         
@@ -6191,13 +6263,13 @@ class SetupOverlay(QWidget):
         title = QLabel("WHO USES THIS COMPUTER?")
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         title.setFont(QFont("Segoe UI", 12, QFont.Weight.Bold))
-        title.setStyleSheet("color: rgba(255,255,255,0.7); background: transparent; letter-spacing: 2px;")
+        title.setStyleSheet("color: rgba(255,255,255,0.7); background: transparent;")
         lay.addWidget(title)
         lay.addSpacing(20)
         
         btn_personal = QPushButton("THIS IS MY PERSONAL COMPUTER")
         btn_personal.setFixedSize(300, 50)
-        btn_personal.setStyleSheet("background: rgba(255, 170, 48, 0.1); color: #ffaa30; border: 1px solid #ffaa30; border-radius: 8px;")
+        btn_personal.setStyleSheet("background: rgba(255, 170, 48, 0.1); color: #ff8a6b; border: 1px solid #ff8a6b; border-radius: 10px;")
         btn_personal.clicked.connect(lambda: self._save_shared_and_next(False))
         lay.addWidget(btn_personal, 0, Qt.AlignmentFlag.AlignCenter)
         
@@ -6205,7 +6277,7 @@ class SetupOverlay(QWidget):
         
         btn_shared = QPushButton("THIS IS A SHARED COMPUTER")
         btn_shared.setFixedSize(300, 50)
-        btn_shared.setStyleSheet("background: rgba(255,255,255, 0.05); color: #fff; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px;")
+        btn_shared.setStyleSheet("background: rgba(255,255,255, 0.05); color: #fff; border: 1px solid rgba(255,255,255,0.2); border-radius: 10px;")
         btn_shared.clicked.connect(lambda: self._save_shared_and_next(True))
         lay.addWidget(btn_shared, 0, Qt.AlignmentFlag.AlignCenter)
         
@@ -6234,7 +6306,7 @@ class SetupOverlay(QWidget):
         title = QLabel("SELECT PRIMARY INTELLIGENCE")
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         title.setFont(QFont("Segoe UI", 11, QFont.Weight.Bold))
-        title.setStyleSheet("color: rgba(255,255,255,0.5); background: transparent; border: none; letter-spacing: 4px;")
+        title.setStyleSheet("color: rgba(255,255,255,0.5); background: transparent; border: none;")
         lay.addWidget(title)
         lay.addSpacing(24)
 
@@ -6249,7 +6321,7 @@ class SetupOverlay(QWidget):
             QFrame {
                 background: rgba(0, 229, 255, 0.06);
                 border: 1px solid rgba(0, 229, 255, 0.25);
-                border-radius: 16px;
+                border-radius: 18px;
             }
             QFrame:hover {
                 background: rgba(0, 229, 255, 0.12);
@@ -6299,7 +6371,7 @@ class SetupOverlay(QWidget):
             QFrame {
                 background: rgba(255, 255, 255, 0.02);
                 border: 1px solid rgba(255, 255, 255, 0.08);
-                border-radius: 16px;
+                border-radius: 18px;
             }
             QFrame:hover {
                 background: rgba(255, 255, 255, 0.05);
@@ -6357,7 +6429,7 @@ class SetupOverlay(QWidget):
         self._s3_box.setFixedSize(480, 260)
         self._s3_box.setStyleSheet("""
             QFrame {
-                background: rgba(8, 10, 16, 220);
+                background: rgba(10, 11, 16, 220);
                 border: 1px solid rgba(0, 229, 255, 0.2);
                 border-radius: 20px;
             }
@@ -6390,9 +6462,8 @@ class SetupOverlay(QWidget):
                 background: rgba(0, 229, 255, 0.04);
                 color: #00e5ff;
                 border: 1px solid rgba(0, 229, 255, 0.25);
-                border-radius: 12px;
+                border-radius: 14px;
                 padding: 0 16px;
-                letter-spacing: 1px;
                 selection-background-color: rgba(0, 229, 255, 0.3);
             }
             QLineEdit:focus {
@@ -6426,7 +6497,7 @@ class SetupOverlay(QWidget):
 
         status_row.addStretch()
 
-        hint = QLabel("<a href='https://aistudio.google.com/app/apikey' style='color: rgba(0, 229, 255,0.5); text-decoration: none; font-size: 10px;'>Get API Key →</a>")
+        hint = QLabel(f"<a href='https://aistudio.google.com/app/apikey' style='color: {C.ACC}; text-decoration: none; font-size: 11px;'>Get API Key →</a>")
         hint.setOpenExternalLinks(True)
         hint.setStyleSheet("background: transparent; border: none;")
         status_row.addWidget(hint)
@@ -6509,24 +6580,24 @@ class SetupOverlay(QWidget):
         else:
             self._auth_timer.stop()
             self._s3_status.setText("✓ Identity Verified")
-            self._s3_status.setStyleSheet("color: #37ff5f; background: transparent; border: none;")
+            self._s3_status.setStyleSheet("color: #6ec1ff; background: transparent; border: none;")
             self._s3_title.setText("✓ Google Gemini")
-            self._s3_title.setStyleSheet("color: #37ff5f; background: transparent; border: none;")
+            self._s3_title.setStyleSheet("color: #6ec1ff; background: transparent; border: none;")
             self._s3_sub.setText("Gemini 2.5 Pro  ·  Ready")
             self._s3_sub.setStyleSheet("color: rgba(55,255,95,0.6); background: transparent; border: none;")
             self._key_input.setStyleSheet("""
                 QLineEdit {
-                    background: rgba(55, 255, 95, 0.04);
-                    color: #37ff5f;
-                    border: 1px solid rgba(55, 255, 95, 0.3);
-                    border-radius: 12px;
+                    background: rgba(110, 193, 255, 0.04);
+                    color: #6ec1ff;
+                    border: 1px solid rgba(110, 193, 255, 0.3);
+                    border-radius: 14px;
                     padding: 0 16px;
                 }
             """)
             self._s3_box.setStyleSheet("""
                 QFrame {
-                    background: rgba(8, 10, 16, 220);
-                    border: 1px solid rgba(55, 255, 95, 0.2);
+                    background: rgba(10, 11, 16, 220);
+                    border: 1px solid rgba(110, 193, 255, 0.2);
                     border-radius: 20px;
                 }
             """)
@@ -6543,7 +6614,7 @@ class SetupOverlay(QWidget):
         self._or_prompt_widget.setFixedSize(460, 200)
         self._or_prompt_widget.setStyleSheet("""
             QFrame {
-                background: rgba(8, 10, 16, 220);
+                background: rgba(10, 11, 16, 220);
                 border: 1px solid rgba(0, 229, 255, 0.15);
                 border-radius: 20px;
             }
@@ -6577,7 +6648,7 @@ class SetupOverlay(QWidget):
                 background: transparent;
                 color: rgba(255,255,255,0.4);
                 border: 1px solid rgba(255,255,255,0.1);
-                border-radius: 12px;
+                border-radius: 14px;
                 padding: 0 24px;
             }
             QPushButton:hover {
@@ -6597,7 +6668,7 @@ class SetupOverlay(QWidget):
                 background: rgba(0, 229, 255, 0.1);
                 color: #00e5ff;
                 border: 1px solid rgba(0, 229, 255, 0.35);
-                border-radius: 12px;
+                border-radius: 14px;
                 padding: 0 24px;
             }
             QPushButton:hover {
@@ -6628,7 +6699,7 @@ class SetupOverlay(QWidget):
         self._or_box.setFixedSize(480, 230)
         self._or_box.setStyleSheet("""
             QFrame {
-                background: rgba(8, 10, 16, 220);
+                background: rgba(10, 11, 16, 220);
                 border: 1px solid rgba(0, 229, 255, 0.2);
                 border-radius: 20px;
             }
@@ -6659,9 +6730,8 @@ class SetupOverlay(QWidget):
                 background: rgba(255, 255, 255, 0.03);
                 color: #ffffff;
                 border: 1px solid rgba(255, 255, 255, 0.15);
-                border-radius: 12px;
+                border-radius: 14px;
                 padding: 0 16px;
-                letter-spacing: 1px;
             }
             QLineEdit:focus {
                 border: 1px solid rgba(0, 229, 255, 0.5);
@@ -6693,7 +6763,7 @@ class SetupOverlay(QWidget):
                 background: rgba(0, 229, 255, 0.1);
                 color: #00e5ff;
                 border: 1px solid rgba(0, 229, 255, 0.35);
-                border-radius: 12px;
+                border-radius: 14px;
                 padding: 0 24px;
             }
             QPushButton:hover {
@@ -6722,7 +6792,7 @@ class SetupOverlay(QWidget):
         self._color_box.setFixedSize(480, 230)
         self._color_box.setStyleSheet("""
             QFrame {
-                background: rgba(8, 10, 16, 220);
+                background: rgba(10, 11, 16, 220);
                 border: 1px solid rgba(0, 229, 255, 0.2);
                 border-radius: 20px;
             }
@@ -6751,7 +6821,7 @@ class SetupOverlay(QWidget):
                 background: {C.PRI};
                 color: #ffffff;
                 border: 1px solid rgba(255, 255, 255, 0.2);
-                border-radius: 12px;
+                border-radius: 14px;
             }}
         """)
         self._setup_color_btn.clicked.connect(self._pick_setup_color)
@@ -6770,7 +6840,7 @@ class SetupOverlay(QWidget):
                 background: rgba(0, 229, 255, 0.1);
                 color: #00e5ff;
                 border: 1px solid rgba(0, 229, 255, 0.35);
-                border-radius: 12px;
+                border-radius: 14px;
                 padding: 0 24px;
             }
             QPushButton:hover {
@@ -6789,7 +6859,7 @@ class SetupOverlay(QWidget):
         color = QColorDialog.getColor(QColor(C.PRI), self, "Select App Theme Color")
         if color.isValid():
             hex_col = color.name()
-            self._setup_color_btn.setStyleSheet(f"QPushButton {{ background: {hex_col}; color: #ffffff; border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 12px; }}")
+            self._setup_color_btn.setStyleSheet(f"QPushButton {{ background: {hex_col}; color: #ffffff; border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 14px; }}")
             try:
                 settings = {}
                 if APP_SETTINGS_FILE.exists():
@@ -6853,19 +6923,19 @@ class SetupOverlay(QWidget):
         self._s4_container.setFixedWidth(360)
         self._s4_container.setStyleSheet("""
             QFrame {
-                background: rgba(5, 8, 12, 180);
+                background: rgba(10, 11, 16, 180);
                 border: 1px solid rgba(0, 229, 255, 0.12);
-                border-radius: 16px;
+                border-radius: 18px;
             }
         """)
         c4lay = QVBoxLayout(self._s4_container)
         c4lay.setContentsMargins(30, 24, 30, 24)
         c4lay.setSpacing(8)
 
-        self._s4_title = QLabel("ESTABLISHING NEURAL LINK")
+        self._s4_title = QLabel("Connecting…")
         self._s4_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._s4_title.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
-        self._s4_title.setStyleSheet("color: rgba(0, 229, 255,0.7); background: transparent; border: none; letter-spacing: 3px;")
+        self._s4_title.setStyleSheet("color: rgba(0, 229, 255,0.7); background: transparent; border: none;")
         c4lay.addWidget(self._s4_title)
         c4lay.addSpacing(12)
 
@@ -6913,19 +6983,19 @@ class SetupOverlay(QWidget):
             self._ignite_step += 1
         else:
             self._ignite_timer.stop()
-            self._s4_title.setText("NEURAL LINK ESTABLISHED")
-            self._s4_title.setStyleSheet("color: #37ff5f; background: transparent; border: none; letter-spacing: 3px; font-weight: bold;")
+            self._s4_title.setText("Connected")
+            self._s4_title.setStyleSheet("color: #6ec1ff; background: transparent; border: none; font-weight: bold;")
             self._s4_container.setStyleSheet("""
                 QFrame {
-                    background: rgba(5, 8, 12, 180);
-                    border: 1px solid rgba(55, 255, 95, 0.2);
-                    border-radius: 16px;
+                    background: rgba(10, 11, 16, 180);
+                    border: 1px solid rgba(110, 193, 255, 0.2);
+                    border-radius: 18px;
                 }
             """)
             for mod in self._module_order:
                 n, b = self._module_labels[mod]
-                n.setStyleSheet("color: #37ff5f; background: transparent; border: none; font-weight: bold;")
-                b.setStyleSheet("color: #37ff5f; background: transparent; border: none;")
+                n.setStyleSheet("color: #6ec1ff; background: transparent; border: none; font-weight: bold;")
+                b.setStyleSheet("color: #6ec1ff; background: transparent; border: none;")
             self._call_js("if(window.dissolveReactor) window.dissolveReactor();")
             QTimer.singleShot(1200, lambda: self.done.emit(self._key_input.text().strip(), getattr(self, "_or_key_value", ""), self._sel_os))
 
@@ -6949,12 +7019,13 @@ class VoiceWaveformVisualizer(QWidget):
         self.setStyleSheet("background: transparent;")
 
         self._timer = QTimer(self)
-        self._timer.setInterval(28)
+        self._timer.setInterval(40)
         self._timer.timeout.connect(self._tick)
-        self._timer.start()
 
     def set_audio_level(self, level: float):
         self._target_level = max(0.0, min(1.0, float(level)))
+        if self._target_level > 0.02 and not self._timer.isActive():
+            self._timer.start()
 
     def set_muted(self, muted: bool):
         self._muted = bool(muted)
@@ -6965,6 +7036,8 @@ class VoiceWaveformVisualizer(QWidget):
         self._audio_level += (self._target_level - self._audio_level) * 0.25
         self._target_level = max(0.0, self._target_level - 0.03)
         self.update()
+        if self._audio_level < 0.01 and self._target_level < 0.01:
+            self._timer.stop()
 
     def paintEvent(self, event):
         painter = QPainter(self)
@@ -6991,11 +7064,11 @@ class VoiceWaveformVisualizer(QWidget):
             y = (h - bar_h) / 2.0
 
             if self._muted:
-                color = QColor("#ff3b30")
+                color = QColor("#ff5a64")
                 color.setAlpha(180)
             else:
                 intensity = min(1.0, 0.45 + self._audio_level * 0.55)
-                color = QColor("#00e5ff" if i % 2 == 0 else "#80ffff")
+                color = QColor(C.ACC if i % 2 == 0 else C.ACC2)
                 color.setAlpha(int(240 * intensity))
 
             painter.setBrush(QBrush(color))
@@ -7003,6 +7076,414 @@ class VoiceWaveformVisualizer(QWidget):
             painter.drawRoundedRect(QRectF(x, y, bar_w, bar_h), 1.5, 1.5)
 
         painter.end()
+
+
+class PulseBall(QWidget):
+    """Touchable, audio-reactive orb drawn with plain QPainter (no WebGL, no shaders).
+
+    * a soft blob-shaped blue orb with a red glow inside, five little "voice pills" in the middle,
+      bars / sparks / ripples around it that move with Jarvis' voice
+    * touch it: drag up/down (or scroll) = voice volume; tap while Jarvis talks = stop mid-sentence
+    * Pause button: cut Jarvis off right now and keep it quiet until you press Resume
+    * animates (~30 fps) only while something is happening and sleeps completely when idle
+    """
+    volume_changed = pyqtSignal(int)
+    pause_toggled = pyqtSignal(bool)
+    stop_requested = pyqtSignal()
+
+    _BARS = 40
+    _BTN_ZONE = 76
+    _CAPTIONS = {"IDLE": "Ready", "ONLINE": "Ready", "LISTENING": "Listening", "SPEAKING": "Speaking",
+                 "THINKING": "Thinking", "PROCESSING": "Thinking", "EXECUTING": "Working on it",
+                 "WORKING": "Working on it", "MUTED": "Mic is muted", "SCANNING": "Looking"}
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
+        self.setMinimumSize(240, 300)
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.setToolTip("Drag up/down or scroll to change Jarvis' voice volume.\nTap while Jarvis is talking to stop it.")
+        self._level = 0.0
+        self._target = 0.0
+        self._phase = 0.0
+        self._state = "IDLE"
+        self._paused = False
+        self._volume = 100
+        self._bars = [0.0] * self._BARS
+        self._ripples: list[list] = []      # [x, y, age, kind]  kind 0 = beat, 1 = touch
+        self._sparks: list[list] = []       # [angle, travel, age, size, is_red, speed]
+        self._press: QPointF | None = None
+        self._press_vol = 100
+        self._moved = False
+        self._squish = 0.0
+        self._squish_to = 0.0
+        self._flash = 0.0                    # how visible the volume ring is (0..1)
+        self._last_beat = 0.0
+        self._aura_pm: QPixmap | None = None
+        self._aura_key = None
+
+        self._btn = QPushButton("Pause", self)
+        self._btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self._btn.setFixedSize(132, 34)
+        self._btn.setToolTip("Stop Jarvis talking right now. Press again to let it talk.")
+        self._btn.clicked.connect(lambda: self.set_paused(not self._paused, emit=True))
+        self._style_btn()
+
+        self._timer = QTimer(self)
+        self._timer.setInterval(33)          # ~30 fps, and only while awake
+        self._timer.timeout.connect(self._tick)
+
+    # ---- public api -------------------------------------------------
+    def sizeHint(self) -> QSize:
+        return QSize(340, 400)
+
+    def set_audio_level(self, level: float):
+        self._target = max(self._target * 0.6, max(0.0, min(1.0, float(level))))
+        if self._target > 0.02:
+            self._wake()
+
+    def set_state(self, state: str):
+        self._state = (state or "IDLE").strip().upper()
+        self._wake()
+        self.update()
+
+    def set_volume(self, pct: int, emit: bool = False):
+        pct = int(max(0, min(100, round(pct))))
+        if pct == self._volume:
+            return
+        self._volume = pct
+        self._flash = 1.0
+        if emit:
+            self.volume_changed.emit(pct)
+        self._wake()
+
+    def volume(self) -> int:
+        return self._volume
+
+    def set_paused(self, paused: bool, emit: bool = False):
+        paused = bool(paused)
+        changed = paused != self._paused
+        self._paused = paused
+        if paused:
+            self._target = 0.0
+        self._style_btn()
+        self._wake()
+        self.update()
+        if emit and changed:
+            self.pause_toggled.emit(paused)
+
+    def is_paused(self) -> bool:
+        return self._paused
+
+    # ---- pause button -----------------------------------------------
+    def _style_btn(self):
+        red = "255, 90, 100"
+        if self._paused:
+            self._btn.setText("Resume")
+            self._btn.setStyleSheet(
+                f"QPushButton {{ background: rgb({red}); color: #ffffff; border: none; border-radius: 17px;"
+                f" font-family: 'Segoe UI'; font-size: 13px; font-weight: 600; }}"
+                f"QPushButton:hover {{ background: rgb(255, 120, 128); }}"
+            )
+        else:
+            self._btn.setText("Pause")
+            self._btn.setStyleSheet(
+                f"QPushButton {{ background: rgba({red}, 0.14); color: #ff9aa1; border: 1px solid rgba({red}, 0.50);"
+                f" border-radius: 17px; font-family: 'Segoe UI'; font-size: 13px; font-weight: 600; }}"
+                f"QPushButton:hover {{ background: rgba({red}, 0.28); color: #ffffff; }}"
+            )
+
+    def resizeEvent(self, e):
+        super().resizeEvent(e)
+        self._btn.move((self.width() - self._btn.width()) // 2, self.height() - self._btn.height() - 8)
+
+    # ---- animation --------------------------------------------------
+    def _awake(self) -> bool:
+        return (self._target > 0.01 or self._level > 0.01 or bool(self._ripples) or bool(self._sparks)
+                or self._press is not None or self._squish > 0.01 or self._flash > 0.01
+                or (self._state == "THINKING" and not self._paused)
+                or any(b > 0.012 for b in self._bars))
+
+    def _wake(self):
+        if not self._timer.isActive() and self.isVisible():
+            self._timer.start()
+
+    def _tick(self):
+        now = time.monotonic()
+        self._phase += 0.07 + 0.14 * self._level
+        prev = self._level
+        self._level += (self._target - self._level) * 0.35
+        self._target = max(0.0, self._target - 0.04)
+        lvl = 0.0 if self._paused else self._level
+        if lvl - prev > 0.18 and now - self._last_beat > 0.28:
+            self._last_beat = now
+            self._ripples.append([0.0, 0.0, 0.0, 0])
+        thinking = self._state == "THINKING" and not self._paused
+        n = self._BARS
+        for i in range(n):
+            j = min(i, n - i)                                  # mirrored left/right
+            prof = 0.55 + 0.45 * math.sin(self._phase * 1.3 + j * 0.55) * math.cos(self._phase * 0.7 - j * 0.21)
+            a = prof * lvl
+            if thinking:
+                a = max(a, 0.10 + 0.08 * math.sin(self._phase * 0.9 + j * 0.45))
+            cur = self._bars[i]
+            self._bars[i] = cur + (a - cur) * (0.45 if a > cur else 0.16)
+        if lvl > 0.35 and len(self._sparks) < 16 and random.random() < 0.3:
+            self._sparks.append([random.uniform(0.0, 6.2832), 0.0, 0.0, random.uniform(1.5, 3.2),
+                                 random.random() < 0.25, random.uniform(1.0, 2.2)])
+        for s in self._sparks:
+            s[1] += s[5] * 2.0
+            s[2] += 0.028
+        self._sparks = [s for s in self._sparks if s[2] < 1.0]
+        for rp in self._ripples:
+            rp[2] += 0.033
+        self._ripples = [rp for rp in self._ripples if rp[2] < 1.1]
+        self._squish += (self._squish_to - self._squish) * 0.3
+        if self._press is not None and self._moved:
+            self._flash = 1.0
+        else:
+            self._flash = max(0.0, self._flash - 0.018)
+        self.update()
+        if not self._awake():
+            self._timer.stop()
+
+    # ---- touch ------------------------------------------------------
+    def _ball_h(self) -> float:
+        return float(self.height() - self._BTN_ZONE)
+
+    def _speaking(self) -> bool:
+        return (self._state == "SPEAKING" or self._level > 0.06) and not self._paused
+
+    def mousePressEvent(self, e):
+        if e.button() != Qt.MouseButton.LeftButton or e.position().y() > self._ball_h():
+            return
+        self._press = QPointF(e.position())
+        self._press_vol = self._volume
+        self._moved = False
+        self._squish_to = 1.0
+        self._ripples.append([e.position().x(), e.position().y(), 0.0, 1])
+        self._wake()
+
+    def mouseMoveEvent(self, e):
+        if self._press is None:
+            return
+        dy = self._press.y() - e.position().y()
+        if abs(dy) > 5:
+            self._moved = True
+        if self._moved:
+            self._flash = 1.0
+            span = max(140.0, self._ball_h() * 0.6)
+            self.set_volume(self._press_vol + dy / span * 100.0, emit=True)
+
+    def mouseReleaseEvent(self, e):
+        if self._press is None:
+            return
+        tap = not self._moved
+        self._press = None
+        self._squish_to = 0.0
+        if tap:
+            if self._speaking():
+                self.stop_requested.emit()       # tap = shush, mid-sentence
+            else:
+                self._flash = 1.0                # tap = peek at the volume
+        self._wake()
+
+    def wheelEvent(self, e):
+        d = e.angleDelta().y()
+        if d:
+            self.set_volume(self._volume + (5 if d > 0 else -5), emit=True)
+            e.accept()
+
+    # ---- painting ---------------------------------------------------
+    @staticmethod
+    def _mix(a: QColor, b: QColor, t: float) -> QColor:
+        t = max(0.0, min(1.0, t))
+        return QColor(int(a.red() + (b.red() - a.red()) * t), int(a.green() + (b.green() - a.green()) * t),
+                      int(a.blue() + (b.blue() - a.blue()) * t))
+
+    def _aura(self, w: float, h: float, blue: QColor) -> QPixmap:
+        """Soft glow + ground shadow. Static, so it is painted once and reused."""
+        key = (int(w), int(h), blue.red(), blue.green(), blue.blue(), self._paused)
+        if self._aura_key != key or self._aura_pm is None:
+            pm = QPixmap(max(1, int(w)), max(1, int(h)))
+            pm.fill(Qt.GlobalColor.transparent)
+            q = QPainter(pm)
+            q.setRenderHint(QPainter.RenderHint.Antialiasing)
+            cx, cy, m = w / 2.0, h / 2.0 - 6.0, min(w, h)
+            r = m * 0.215
+            q.setPen(Qt.PenStyle.NoPen)
+            g = QRadialGradient(cx, cy, m * 0.52)
+            g.setColorAt(0.0, QColor(blue.red(), blue.green(), blue.blue(), 70))
+            g.setColorAt(1.0, QColor(blue.red(), blue.green(), blue.blue(), 0))
+            q.setBrush(QBrush(g))
+            q.drawEllipse(QPointF(cx, cy), m * 0.52, m * 0.52)
+            rc = QColor(C.RED)
+            g2 = QRadialGradient(cx + m * 0.16, cy + m * 0.18, m * 0.36)
+            g2.setColorAt(0.0, QColor(rc.red(), rc.green(), rc.blue(), 14 if self._paused else 40))
+            g2.setColorAt(1.0, QColor(rc.red(), rc.green(), rc.blue(), 0))
+            q.setBrush(QBrush(g2))
+            q.drawEllipse(QPointF(cx + m * 0.16, cy + m * 0.18), m * 0.36, m * 0.36)
+            q.save()
+            q.translate(cx, cy + r * 1.12)
+            q.scale(1.0, 0.3)
+            g3 = QRadialGradient(0.0, 0.0, r * 1.2)
+            g3.setColorAt(0.0, QColor(0, 0, 0, 125))
+            g3.setColorAt(1.0, QColor(0, 0, 0, 0))
+            q.setBrush(QBrush(g3))
+            q.drawEllipse(QPointF(0.0, 0.0), r * 1.2, r * 1.2)
+            q.restore()
+            q.end()
+            self._aura_pm, self._aura_key = pm, key
+        return self._aura_pm
+
+    def paintEvent(self, event):
+        p = QPainter(self)
+        p.setRenderHint(QPainter.RenderHint.Antialiasing)
+        w, h = float(self.width()), self._ball_h()
+        cx, cy = w / 2.0, h / 2.0 - 6.0
+        m = min(w, h)
+        lvl = 0.0 if self._paused else self._level
+        r = m * 0.215 * (1.0 + 0.05 * lvl - 0.06 * self._squish)
+        blue, red = QColor(C.ACC), QColor(C.RED)
+        deep = QColor(16, 24, 70)
+        if self._paused or self._state == "MUTED":
+            blue = self._mix(blue, QColor(120, 128, 150), 0.55)
+            deep = QColor(18, 20, 30)
+
+        p.setOpacity(0.5 + 0.5 * lvl)
+        p.drawPixmap(0, 0, self._aura(w, h, blue))
+        p.setOpacity(1.0)
+
+        # ripples: blue rings from the orb on each beat, red ring from your finger
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        for x, y, age, kind in self._ripples:
+            t = age / 1.1
+            col = QColor(blue if kind == 0 else red)
+            col.setAlpha(int(150 * (1.0 - t) ** 1.6))
+            p.setPen(QPen(col, 2.0))
+            if kind == 0:
+                rad = r * (1.2 + 1.4 * t)
+                p.drawEllipse(QPointF(cx, cy), rad, rad)
+            else:
+                rad = r * (0.15 + 0.9 * t)
+                p.drawEllipse(QPointF(x, y), rad, rad)
+
+        # soft rounded bars (blue, warming to red on loud peaks)
+        n = self._BARS
+        inner = r * 1.17
+        maxlen = m * 0.17
+        bw = max(3.0, m * 0.017)
+        for i in range(n):
+            amp = self._bars[i]
+            ang = 2.0 * math.pi * i / n - math.pi / 2.0
+            col = self._mix(blue, red, (amp - 0.55) / 0.45)
+            col.setAlpha(int(115 + 140 * min(1.0, amp * 1.6)))
+            pen = QPen(col, bw)
+            pen.setCapStyle(Qt.PenCapStyle.RoundCap)
+            p.setPen(pen)
+            ln = bw * 0.5 + amp * maxlen
+            ca, sa = math.cos(ang), math.sin(ang)
+            p.drawLine(QPointF(cx + ca * inner, cy + sa * inner), QPointF(cx + ca * (inner + ln), cy + sa * (inner + ln)))
+
+        # drifting sparks
+        p.setPen(Qt.PenStyle.NoPen)
+        for ang, trav, age, sz, is_red, _spd in self._sparks:
+            col = QColor(red) if is_red else self._mix(blue, QColor(255, 255, 255), 0.4)
+            col.setAlpha(int(180 * (1.0 - age)))
+            p.setBrush(QBrush(col))
+            d = r * 1.4 + trav
+            p.drawEllipse(QPointF(cx + math.cos(ang) * d, cy + math.sin(ang) * d), sz, sz)
+
+        # the orb: a living blob
+        K = 64
+        amp = 0.5 + 0.5 * lvl
+        path = QPainterPath()
+        for i in range(K):
+            th = 2.0 * math.pi * i / K
+            d = amp * (math.sin(2 * th + self._phase * 1.1) * 0.5 + math.sin(3 * th - self._phase * 0.8) * 0.35
+                       + math.sin(5 * th + self._phase * 1.7) * 0.15)
+            rr = r * (1.0 + 0.07 * d)
+            x, y = cx + math.cos(th) * rr, cy + math.sin(th) * rr
+            if i == 0:
+                path.moveTo(x, y)
+            else:
+                path.lineTo(x, y)
+        path.closeSubpath()
+        g = QRadialGradient(QPointF(cx - r * 0.2, cy - r * 0.2), r * 1.5, QPointF(cx - r * 0.35, cy - r * 0.42))
+        g.setColorAt(0.0, self._mix(blue, QColor(255, 255, 255), 0.35))
+        g.setColorAt(0.45, blue)
+        g.setColorAt(1.0, deep)
+        p.setPen(Qt.PenStyle.NoPen)
+        p.setBrush(QBrush(g))
+        p.drawPath(path)
+        p.save()
+        p.setClipPath(path)
+        rg = QRadialGradient(cx + r * 0.6, cy + r * 0.7, r * 1.05)
+        rg.setColorAt(0.0, QColor(red.red(), red.green(), red.blue(), 46 if self._paused else 158))
+        rg.setColorAt(1.0, QColor(red.red(), red.green(), red.blue(), 0))
+        p.setBrush(QBrush(rg))
+        p.drawEllipse(QPointF(cx + r * 0.6, cy + r * 0.7), r * 1.05, r * 1.05)
+        hl = QRadialGradient(cx - r * 0.4, cy - r * 0.5, r * 0.55)
+        hl.setColorAt(0.0, QColor(255, 255, 255, 76))
+        hl.setColorAt(1.0, QColor(255, 255, 255, 0))
+        p.setBrush(QBrush(hl))
+        p.drawEllipse(QPointF(cx - r * 0.4, cy - r * 0.5), r * 0.55, r * 0.55)
+        p.restore()
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        p.setPen(QPen(QColor(0, 0, 0, 90), 2.0))
+        p.drawPath(path)
+
+        # five little voice pills in the middle (dots when quiet)
+        pw, gap = r * 0.115, r * 0.13
+        thinking = self._state == "THINKING" and not self._paused
+        p.setPen(Qt.PenStyle.NoPen)
+        p.setBrush(QBrush(QColor(255, 255, 255, 128 if self._paused else 238)))
+        for i, prof in enumerate((0.55, 0.85, 1.0, 0.8, 0.5)):
+            a = lvl * prof * (0.6 + 0.4 * (0.5 + 0.5 * math.sin(self._phase * 2.0 + i * 1.2)))
+            if thinking:
+                a = max(a, 0.18 + 0.15 * math.sin(self._phase * 1.6 - i * 0.9))
+            ph = pw + a * r * 0.75
+            x = cx + (i - 2) * (pw + gap)
+            p.drawRoundedRect(QRectF(x - pw / 2.0, cy - ph / 2.0, pw, ph), pw / 2.0, pw / 2.0)
+
+        # volume ring + number (fades out a moment after you let go)
+        if self._flash > 0.02:
+            fa = min(1.0, self._flash * 1.4)
+            rr = r * 0.82
+            rect = QRectF(cx - rr, cy - rr, rr * 2, rr * 2)
+            p.setBrush(QBrush(QColor(10, 11, 30, int(205 * fa))))
+            p.setPen(Qt.PenStyle.NoPen)
+            p.drawEllipse(QPointF(cx, cy), r * 0.52, r * 0.52)
+            p.setBrush(Qt.BrushStyle.NoBrush)
+            tp = QPen(QColor(255, 255, 255, int(42 * fa)), 5.0)
+            tp.setCapStyle(Qt.PenCapStyle.RoundCap)
+            p.setPen(tp)
+            p.drawArc(rect, 225 * 16, -270 * 16)
+            if self._volume > 0:
+                vc = QColor(red)
+                vc.setAlpha(int(255 * fa))
+                vp = QPen(vc, 5.0)
+                vp.setCapStyle(Qt.PenCapStyle.RoundCap)
+                p.setPen(vp)
+                p.drawArc(rect, 225 * 16, int(-270 * 16 * self._volume / 100.0))
+            f = QFont("Segoe UI", max(11, int(r * 0.27)))
+            f.setWeight(QFont.Weight.DemiBold)
+            p.setFont(f)
+            p.setPen(QColor(255, 255, 255, int(255 * fa)))
+            p.drawText(QRectF(cx - r, cy - r, r * 2, r * 2), Qt.AlignmentFlag.AlignCenter, f"{self._volume}%")
+
+        # caption
+        p.setFont(QFont("Segoe UI", 10))
+        if self._paused:
+            p.setPen(QColor(red.red(), red.green(), red.blue(), 230))
+            cap = "Quiet"
+        else:
+            p.setPen(QColor(200, 210, 240, 175))
+            cap = self._CAPTIONS.get(self._state, "Ready")
+        p.drawText(QRectF(0, h + 2, w, 24), Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter, cap)
+        p.end()
 
 
 class CommandBar(QWidget):
@@ -7032,10 +7513,10 @@ class CommandBar(QWidget):
         frame.setStyleSheet(f"""
             QFrame#CommandBarFrame {{
                 background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
-                    stop:0 rgba(6, 6, 10, 252),
-                    stop:0.3 rgba(12, 11, 16, 252),
-                    stop:0.7 rgba(12, 11, 16, 252),
-                    stop:1 rgba(6, 6, 10, 252));
+                    stop:0 rgba(10, 11, 16, 252),
+                    stop:0.3 rgba(10, 11, 16, 252),
+                    stop:0.7 rgba(10, 11, 16, 252),
+                    stop:1 rgba(10, 11, 16, 252));
                 border: 1px solid rgba(0, 229, 255, 0.22);
                 border-radius: 20px;
             }}
@@ -7051,7 +7532,7 @@ class CommandBar(QWidget):
             QFrame {
                 background: rgba(0, 229, 255, 0.06);
                 border: 1px solid rgba(0, 229, 255, 0.25);
-                border-radius: 16px;
+                border-radius: 18px;
             }
         """)
         logo_lay = QVBoxLayout(logo_frame)
@@ -7073,7 +7554,7 @@ class CommandBar(QWidget):
                 background: rgba(255, 255, 255, 0.03);
                 color: {C.WHITE};
                 border: 1px solid rgba(255, 255, 255, 0.06);
-                border-radius: 16px;
+                border-radius: 18px;
                 padding: 0 14px;
                 selection-background-color: rgba(0, 229, 255, 0.25);
             }}
@@ -7091,7 +7572,7 @@ class CommandBar(QWidget):
                 background: rgba(255, 255, 255, 0.03);
                 color: rgba(255, 255, 255, 0.5);
                 border: 1px solid rgba(255, 255, 255, 0.06);
-                border-radius: 14px;
+                border-radius: 16px;
             }}
             QPushButton:hover {{
                 background: rgba(0, 229, 255, 0.12);
@@ -7129,9 +7610,8 @@ class CommandBar(QWidget):
                 background: rgba(0, 229, 255, 0.06);
                 color: rgba(0, 229, 255, 0.7);
                 border: 1px solid rgba(0, 229, 255, 0.25);
-                border-radius: 14px;
+                border-radius: 16px;
                 font: 700 8px 'Segoe UI';
-                letter-spacing: 0.5px;
             }}
             QPushButton:hover {{
                 background: rgba(0, 229, 255, 0.15);
@@ -7339,9 +7819,9 @@ class OmniCommandPalette(QDialog):
         self._frame.setObjectName("OmniPaletteFrame")
         self._frame.setStyleSheet("""
             QFrame#OmniPaletteFrame {
-                background: rgba(10, 12, 18, 252);
+                background: rgba(10, 11, 16, 252);
                 border: 1.5px solid rgba(0, 229, 255, 0.45);
-                border-radius: 16px;
+                border-radius: 18px;
             }
         """)
         root.addWidget(self._frame)
@@ -7382,7 +7862,7 @@ class OmniCommandPalette(QDialog):
             color: rgba(255, 255, 255, 0.45);
             background: rgba(255, 255, 255, 0.06);
             border: 1px solid rgba(255, 255, 255, 0.12);
-            border-radius: 6px;
+            border-radius: 8px;
             padding: 3px 8px;
         """)
         search_box.addWidget(esc_badge)
@@ -7415,7 +7895,7 @@ class OmniCommandPalette(QDialog):
                     background: rgba(0, 229, 255, 0.08);
                     color: #00e5ff;
                     border: 1px solid rgba(0, 229, 255, 0.22);
-                    border-radius: 12px;
+                    border-radius: 14px;
                     padding: 0 10px;
                 }
                 QPushButton:hover {
@@ -7438,7 +7918,7 @@ class OmniCommandPalette(QDialog):
                 border: none;
             }
             QScrollBar:vertical {
-                background: rgba(10, 12, 18, 0.6);
+                background: rgba(10, 11, 16, 0.6);
                 width: 6px;
                 margin: 0;
             }
@@ -7464,7 +7944,7 @@ class OmniCommandPalette(QDialog):
         foot.addStretch(1)
         brand = QLabel("JARVIS OMNI-BAR")
         brand.setFont(QFont("Segoe UI", 8, QFont.Weight.Bold))
-        brand.setStyleSheet("color: #00e5ff; background: transparent; letter-spacing: 1px;")
+        brand.setStyleSheet("color: #00e5ff; background: transparent;")
         foot.addWidget(brand)
         lay.addLayout(foot)
 
@@ -7514,12 +7994,12 @@ class OmniCommandPalette(QDialog):
             btn = QFrame()
             btn.setObjectName("PaletteItem")
             border = "rgba(0, 229, 255, 0.50)" if is_selected else "rgba(255, 255, 255, 0.05)"
-            bg = "rgba(0, 229, 255, 0.12)" if is_selected else "rgba(18, 22, 30, 160)"
+            bg = "rgba(0, 229, 255, 0.12)" if is_selected else "rgba(10, 11, 16, 160)"
             btn.setStyleSheet(f"""
                 QFrame#PaletteItem {{
                     background: {bg};
                     border: 1px solid {border};
-                    border-radius: 10px;
+                    border-radius: 12px;
                 }}
             """)
             btn.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -7537,7 +8017,7 @@ class OmniCommandPalette(QDialog):
             text_box.setSpacing(2)
             title_lbl = QLabel(cmd_item.get("title", ""))
             title_lbl.setFont(QFont("Segoe UI", 9, QFont.Weight.Bold))
-            title_lbl.setStyleSheet(f"color: {'#ffffff' if is_selected else '#e2e8f0'}; background: transparent;")
+            title_lbl.setStyleSheet(f"color: {'#ffffff' if is_selected else '#c9d3ee'}; background: transparent;")
             text_box.addWidget(title_lbl)
 
             desc_lbl = QLabel(cmd_item.get("desc", ""))
@@ -7597,24 +8077,24 @@ class DeveloperModeDialog(QDialog):
         self.setWindowTitle("Developer Mode")
         self.setMinimumWidth(420)
         self.setStyleSheet(f"""
-            QDialog {{ background: rgba(8,10,14,235); color: {C.WHITE}; border: 1px solid {C.BORDER_B}; }}
+            QDialog {{ background: rgba(10, 11, 16,235); color: {C.WHITE}; border: 1px solid {C.BORDER_B}; }}
             QLabel {{ color: {C.TEXT}; }}
             QLineEdit {{
-                background: rgba(16,16,16,240);
+                background: rgba(10, 11, 16,240);
                 color: {C.WHITE};
                 border: 1px solid {C.BORDER};
-                border-radius: 10px;
+                border-radius: 12px;
                 padding: 8px 10px;
             }}
             QLineEdit:focus {{ border: 1px solid {C.PRI}; }}
             QPushButton {{
-                background: rgba(18,18,18,240);
+                background: rgba(10, 11, 16,240);
                 color: {C.WHITE};
                 border: 1px solid {C.BORDER_B};
-                border-radius: 10px;
+                border-radius: 12px;
                 padding: 8px 12px;
             }}
-            QPushButton:hover {{ background: rgba(28,28,28,245); border: 1px solid {C.PRI}; }}
+            QPushButton:hover {{ background: rgba(10, 11, 16,245); border: 1px solid {C.PRI}; }}
             QCheckBox {{ color: {C.TEXT}; }}
         """)
 
@@ -7712,7 +8192,7 @@ class ScanningOverlay(QWidget):
         self._boxes = [] 
         self._context_lines = []
         
-        self.GOLD = QColor("#00E5FF")
+        self.GOLD = QColor(C.ACC)
 
     def set_message(self, text: str, sub: str | None = None):
         self._text = (text or "SCANNING SCREEN").upper()
@@ -7919,7 +8399,7 @@ class ScanningOverlay(QWidget):
                 y = y + (cy - y) * e * 0.8
                 
             alpha = int(100 + math.sin(part['life']) * 50)
-            p.setBrush(QColor(0, 229, 255, alpha))
+            p.setBrush(QColor(*C.ACC_T, alpha))
             size = 1.5 + math.sin(part['life']) * 1.0
             p.drawEllipse(QRectF(x - size, y - size, size * 2, size * 2))
             
@@ -7928,15 +8408,15 @@ class ScanningOverlay(QWidget):
         e = _ease_out_expo(progress)
         y = e * H
         grad = QLinearGradient(0, y - 50, 0, y + 50)
-        grad.setColorAt(0.0, QColor(0, 229, 255, 0))
-        grad.setColorAt(0.5, QColor(0, 229, 255, 150))
-        grad.setColorAt(1.0, QColor(0, 229, 255, 0))
+        grad.setColorAt(0.0, QColor(*C.ACC_T, 0))
+        grad.setColorAt(0.5, QColor(*C.ACC_T, 150))
+        grad.setColorAt(1.0, QColor(*C.ACC_T, 0))
         p.fillRect(QRectF(0, y - 50, W, 100), grad)
         x = e * W
         grad2 = QLinearGradient(x - 50, 0, x + 50, 0)
-        grad2.setColorAt(0.0, QColor(0, 229, 255, 0))
-        grad2.setColorAt(0.5, QColor(0, 229, 255, 150))
-        grad2.setColorAt(1.0, QColor(0, 229, 255, 0))
+        grad2.setColorAt(0.0, QColor(*C.ACC_T, 0))
+        grad2.setColorAt(0.5, QColor(*C.ACC_T, 150))
+        grad2.setColorAt(1.0, QColor(*C.ACC_T, 0))
         p.fillRect(QRectF(x - 50, 0, 100, H), grad2)
         
     def _draw_all_boxes(self, p):
@@ -7960,7 +8440,7 @@ class ScanningOverlay(QWidget):
             # Styles based on category
             if cat == "OCR":
                 br = (w / 4) * e
-                p.setPen(QPen(QColor(0, 229, 255, int(150 * alpha_mult)), 1))
+                p.setPen(QPen(QColor(*C.ACC_T, int(150 * alpha_mult)), 1))
                 if prog < 0.5:
                     p.drawLine(QPointF(x, y), QPointF(x + br, y))
                     p.drawLine(QPointF(x, y), QPointF(x, y + br))
@@ -7975,7 +8455,7 @@ class ScanningOverlay(QWidget):
                     
             elif cat == "WINDOW":
                 br = 30 * e
-                p.setPen(QPen(QColor(0, 229, 255, int(200 * alpha_mult)), 2))
+                p.setPen(QPen(QColor(*C.ACC_T, int(200 * alpha_mult)), 2))
                 p.drawLine(QPointF(x, y), QPointF(x + br, y))
                 p.drawLine(QPointF(x, y), QPointF(x, y + br))
                 p.drawLine(QPointF(x + w, y), QPointF(x + w - br, y))
@@ -7986,13 +8466,13 @@ class ScanningOverlay(QWidget):
                 p.drawLine(QPointF(x + w, y + h), QPointF(x + w, y + h - br))
                 
             elif cat == "BUTTON":
-                p.setPen(QPen(QColor(0, 229, 255, int(100 * e * alpha_mult)), 1))
-                p.setBrush(QColor(0, 229, 255, int(20 * e * alpha_mult)))
+                p.setPen(QPen(QColor(*C.ACC_T, int(100 * e * alpha_mult)), 1))
+                p.setBrush(QColor(*C.ACC_T, int(20 * e * alpha_mult)))
                 p.drawRoundedRect(QRectF(x, y, w, h), 6, 6)
                 p.setBrush(Qt.BrushStyle.NoBrush)
                 
             elif cat == "ICON":
-                p.setPen(QPen(QColor(0, 229, 255, int(200 * e * alpha_mult)), 1))
+                p.setPen(QPen(QColor(*C.ACC_T, int(200 * e * alpha_mult)), 1))
                 p.drawEllipse(QRectF(x + w/2 - 4*e, y + h/2 - 4*e, 8*e, 8*e))
                 
             if dt > 0.8:
@@ -8004,7 +8484,7 @@ class ScanningOverlay(QWidget):
                 if conf < 75: label = f"Possible {label}"
                 
                 p.setFont(QFont("Inter", 8, QFont.Weight.Bold))
-                p.setPen(QColor(0, 229, 255, int(255 * te * alpha_mult)))
+                p.setPen(QColor(*C.ACC_T, int(255 * te * alpha_mult)))
                 ly = y - 6 + (1.0 - te) * 10
                 p.drawText(QRectF(x, ly - 10, 200, 12), Qt.AlignmentFlag.AlignLeft, f"{label} {conf}%")
 
@@ -8015,10 +8495,10 @@ class ScanningOverlay(QWidget):
                 cx, cy = x + w + 20, y + 20
                 cw, ch = 220, 90
                 
-                p.setPen(QPen(QColor(0, 229, 255, int(150 * ce * alpha_mult)), 1, Qt.PenStyle.DashLine))
+                p.setPen(QPen(QColor(*C.ACC_T, int(150 * ce * alpha_mult)), 1, Qt.PenStyle.DashLine))
                 p.drawLine(QPointF(x + w, y + 40), QPointF(cx, cy + ch/2))
                 
-                p.setPen(QPen(QColor(0, 229, 255, int(100 * ce * alpha_mult)), 1))
+                p.setPen(QPen(QColor(*C.ACC_T, int(100 * ce * alpha_mult)), 1))
                 p.setBrush(QColor(10, 10, 5, int(220 * ce * alpha_mult)))
                 p.drawRoundedRect(QRectF(cx, cy, cw, ch), 6, 6)
                 p.setBrush(Qt.BrushStyle.NoBrush)
@@ -8028,7 +8508,7 @@ class ScanningOverlay(QWidget):
                     p.setFont(QFont("Inter", 10, QFont.Weight.Bold))
                     p.drawText(QRectF(cx + 12, cy + 10, cw, 20), Qt.AlignmentFlag.AlignLeft, "Detected Interface")
                     
-                    p.setPen(QColor(0, 229, 255, int(255 * alpha_mult)))
+                    p.setPen(QColor(*C.ACC_T, int(255 * alpha_mult)))
                     p.setFont(QFont("Inter", 8))
                     p.drawText(QRectF(cx + 12, cy + 32, cw, 20), Qt.AlignmentFlag.AlignLeft, f"{label} Verified")
 
@@ -8038,7 +8518,7 @@ class ScanningOverlay(QWidget):
         alpha_mult = max(0.0, 1.0 - out_dt) if out_dt > 0 else 1.0
         if alpha_mult <= 0: return
         prog = min(1.0, dt / 1.0)
-        p.setPen(QPen(QColor(0, 229, 255, int(100 * prog * alpha_mult)), 1, Qt.PenStyle.DotLine))
+        p.setPen(QPen(QColor(*C.ACC_T, int(100 * prog * alpha_mult)), 1, Qt.PenStyle.DotLine))
         for i, j in self._context_lines:
             b1 = self._boxes[i]
             b2 = self._boxes[j]
@@ -8054,12 +8534,12 @@ class ScanningOverlay(QWidget):
         e = _ease_out_expo(progress)
         r = 80 * e
         grad = QLinearGradient(cx - r, cy - r, cx + r, cy + r)
-        grad.setColorAt(0.0, QColor(0, 229, 255, 150))
-        grad.setColorAt(1.0, QColor(0, 229, 255, 0))
+        grad.setColorAt(0.0, QColor(*C.ACC_T, 150))
+        grad.setColorAt(1.0, QColor(*C.ACC_T, 0))
         p.setPen(Qt.PenStyle.NoPen)
         p.setBrush(grad)
         p.drawEllipse(QRectF(cx - r*1.5, cy - r*1.5, r*3, r*3))
-        p.setPen(QPen(QColor(0, 229, 255, int(200 * e)), 1))
+        p.setPen(QPen(QColor(*C.ACC_T, int(200 * e)), 1))
         num_nodes = 8
         time_rot = self._time * 0.5
         nodes = []
@@ -8069,7 +8549,7 @@ class ScanningOverlay(QWidget):
             nx = cx + math.cos(angle) * orbit_r * e
             ny = cy + math.sin(angle) * orbit_r * e
             nodes.append((nx, ny))
-            p.setBrush(QColor(0, 229, 255, 255))
+            p.setBrush(QColor(*C.ACC_T, 255))
             p.drawEllipse(QRectF(nx - 3, ny - 3, 6, 6))
         for i in range(num_nodes):
             n1 = nodes[i]
@@ -8086,7 +8566,7 @@ class ScanningOverlay(QWidget):
             prog = min(1.0, dt / 0.5)
             e = _ease_out_expo(prog)
             pw, ph = 400, 120
-            p.setPen(QPen(QColor(0, 229, 255, int(150 * e)), 1))
+            p.setPen(QPen(QColor(*C.ACC_T, int(150 * e)), 1))
             p.setBrush(QColor(10, 10, 5, int(230 * e)))
             p.drawRoundedRect(QRectF(cx - pw/2, cy - ph/2, pw, ph), 8, 8)
             if prog > 0.8:
@@ -8096,7 +8576,7 @@ class ScanningOverlay(QWidget):
                 if len(lines) > 0:
                     p.drawText(QRectF(cx - pw/2, cy - 20, pw, 24), Qt.AlignmentFlag.AlignCenter, lines[0])
                 if len(lines) > 1:
-                    p.setPen(QColor(0, 229, 255, 255))
+                    p.setPen(QColor(*C.ACC_T, 255))
                     p.setFont(QFont("Inter", 10))
                     p.drawText(QRectF(cx - pw/2, cy + 10, pw, 20), Qt.AlignmentFlag.AlignCenter, lines[1])
         else:
@@ -8114,63 +8594,33 @@ class ScanningOverlay(QWidget):
 
 
 class BootSequenceOverlay(QWidget):
+    """Short, gentle start-up fade (about 1.3s) instead of a full-screen particle show."""
     finished = pyqtSignal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setWindowFlags(
-            Qt.WindowType.FramelessWindowHint
-            | Qt.WindowType.WindowStaysOnTopHint
-        )
+        self.setWindowFlags(Qt.WindowType.FramelessWindowHint | Qt.WindowType.WindowStaysOnTopHint)
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
-        self.setAttribute(Qt.WidgetAttribute.WA_OpaquePaintEvent, False)
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
-        self.setWindowOpacity(1.0)
-
         self._boot_finished = False
         self._time = 0.0
-        self._dt = 0.016
-        self._total_duration = 3.6
-
-        # Particles & Effects State
-        self._particles = []
-        self._impact_sparks = []
-        self._played_whoosh = False
-        self._played_impact = False
-
+        self._total_duration = 1.3
+        self._greeting = ""
         self._tmr = QTimer(self)
+        self._tmr.setInterval(33)
         self._tmr.timeout.connect(self._tick)
-
-    def _init_particles(self, w: float, h: float):
-        self._particles = []
-        for _ in range(280):
-            self._particles.append({
-                'x': random.uniform(0, w),
-                'y': random.uniform(0, h),
-                'vx': random.uniform(-0.65, 0.65),
-                'vy': random.uniform(-0.65, 0.65),
-                'size': random.uniform(1.4, 4.0),
-                'base_alpha': random.uniform(0.65, 1.0),
-                'twinkle_speed': random.uniform(2.5, 6.5),
-                'twinkle_phase': random.uniform(0, math.pi * 2),
-                'converge_delay': random.uniform(0.0, 0.25),
-                'orig_x': 0.0,
-                'orig_y': 0.0,
-            })
 
     def start(self, device_name: str = "", greeting_name: str = ""):
         self._boot_finished = False
+        self._greeting = (greeting_name or "").strip()
         screen = QApplication.primaryScreen()
         geo = screen.geometry() if screen else QRectF(0, 0, 1920, 1080).toRect()
         self.setGeometry(geo)
-        self._init_particles(float(geo.width()), float(geo.height()))
         self._time = 0.0
-        self._played_whoosh = False
-        self._played_impact = False
         self.show()
         self.raise_()
         self.activateWindow()
-        self._tmr.start(16)
+        self._tmr.start()
 
     def add_step(self, text: str):
         pass
@@ -8181,269 +8631,49 @@ class BootSequenceOverlay(QWidget):
     def set_progress(self, percent: int, tip: str | None = None):
         pass
 
+    def _finish(self):
+        self._tmr.stop()
+        self._boot_finished = True
+        self.hide()
+        self.close()
+        self.finished.emit()
+
     def keyPressEvent(self, event):
         if event.key() == Qt.Key.Key_Escape:
-            self._tmr.stop()
-            self._boot_finished = True
-            self.hide()
-            self.close()
-            self.finished.emit()
+            self._finish()
 
     def _tick(self):
-        self._time += self._dt
-        w = float(self.width())
-        h = float(self.height())
-        cx = w / 2.0
-        cy = h / 2.0
-
-        # Phase 1 (0.0 to 1.1s): particles drift across full screen
-        if self._time < 1.1:
-            for p in self._particles:
-                p['x'] += p['vx']
-                p['y'] += p['vy']
-                if p['x'] < 0: p['x'] = w
-                elif p['x'] > w: p['x'] = 0
-                if p['y'] < 0: p['y'] = h
-                elif p['y'] > h: p['y'] = 0
-
-        # Phase 2 (1.1s to 1.8s): burst & convergence towards center
-        elif 1.1 <= self._time < 1.8:
-            if not self._played_whoosh:
-                self._played_whoosh = True
-                try:
-                    from sound_manager import SoundManager
-                    SoundManager.instance().play_deploy_whoosh()
-                except Exception:
-                    pass
-                for p in self._particles:
-                    p['orig_x'] = p['x']
-                    p['orig_y'] = p['y']
-
-            burst_t = (self._time - 1.1) / 0.7
-            for p in self._particles:
-                local_t = max(0.0, min(1.0, (burst_t - p['converge_delay']) / (1.0 - p['converge_delay'] + 0.001)))
-                ease = math.pow(local_t, 3.2)
-                p['x'] = p['orig_x'] + (cx - p['orig_x']) * ease
-                p['y'] = p['orig_y'] + (cy - 30.0 - p['orig_y']) * ease
-
-        # Phase 4 (2.5s to 3.2s): AI - EVO entrance with impact
-        if self._time >= 2.5 and not self._played_impact:
-            self._played_impact = True
-            try:
-                from sound_manager import SoundManager
-                SoundManager.instance().play_mission_complete()
-            except Exception:
-                pass
-            self._impact_sparks = []
-            for _ in range(70):
-                angle = random.uniform(0, math.pi * 2)
-                spd = random.uniform(6.0, 24.0)
-                self._impact_sparks.append({
-                    'x': cx,
-                    'y': cy + 55.0,
-                    'vx': math.cos(angle) * spd,
-                    'vy': math.sin(angle) * spd * 0.65,
-                    'alpha': 1.0,
-                    'size': random.uniform(2.0, 4.5),
-                    'color': random.choice(['#00f0ff', '#ffffff', '#7dd3fc', '#38bdf8'])
-                })
-
-        if self._impact_sparks:
-            for s in self._impact_sparks:
-                s['x'] += s['vx']
-                s['y'] += s['vy']
-                s['vx'] *= 0.92
-                s['vy'] *= 0.92
-                s['alpha'] *= 0.92
-
+        self._time += 0.033
         self.update()
-
         if self._time >= self._total_duration:
-            self._tmr.stop()
-            self._boot_finished = True
-            self.hide()
-            self.close()
-            self.finished.emit()
+            self._finish()
 
     def paintEvent(self, event):
         try:
-            painter = QPainter(self)
-            painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-            painter.setRenderHint(QPainter.RenderHint.TextAntialiasing)
-            # Minimal DWM compositing fill (alpha=1 ensures DWM layered composition without visible darkening)
-            painter.fillRect(self.rect(), QColor(0, 0, 0, 1))
-
-            w = float(self.width())
-            h = float(self.height())
-            cx = w / 2.0
-            cy = h / 2.0
-
-            # DO NOT DRAW BACKGROUND FILL: Purely transparent!
-
-            # Transition out alpha (Phase 5: 3.2s to 3.6s)
-            global_alpha = 1.0
-            if self._time >= 3.2:
-                exit_t = min(1.0, (self._time - 3.2) / 0.4)
-                global_alpha = max(0.0, 1.0 - exit_t)
-
-            # Camera Shake calculation during impact (2.5s to 3.0s)
-            shake_x, shake_y = 0.0, 0.0
-            if 2.5 <= self._time < 3.0:
-                shake_dt = self._time - 2.5
-                decay = max(0.0, 1.0 - (shake_dt / 0.45))
-                shake_x = math.sin(shake_dt * 65.0) * 16.0 * decay
-                shake_y = math.cos(shake_dt * 52.0) * 10.0 * decay
-
-            painter.translate(shake_x, shake_y)
-
-            # -------------------------------------------------------------
-            # 1. DRAW PARTICLES
-            # -------------------------------------------------------------
-            if self._time < 1.8:
-                for p in self._particles:
-                    p_alpha = p['base_alpha']
-                    if self._time < 0.6:
-                        p_alpha *= (self._time / 0.6)
-                    twinkle = 0.75 + 0.25 * math.sin(self._time * p['twinkle_speed'] + p['twinkle_phase'])
-                    final_alpha = int(255 * p_alpha * twinkle * global_alpha)
-
-                    if final_alpha <= 0:
-                        continue
-
-                    if p['size'] > 2.5:
-                        glow_pen = QColor(255, 255, 255, int(final_alpha * 0.25))
-                        painter.setPen(Qt.PenStyle.NoPen)
-                        painter.setBrush(glow_pen)
-                        painter.drawEllipse(QPointF(p['x'], p['y']), p['size'] * 2.2, p['size'] * 2.2)
-
-                    painter.setPen(Qt.PenStyle.NoPen)
-                    painter.setBrush(QColor(255, 255, 255, final_alpha))
-                    painter.drawEllipse(QPointF(p['x'], p['y']), p['size'], p['size'])
-
-            # -------------------------------------------------------------
-            # 2. DRAW CENTER CONVERGENCE FLASH & SHOCKWAVE
-            # -------------------------------------------------------------
-            if 1.4 <= self._time < 1.9:
-                flash_t = (self._time - 1.4) / 0.5
-                flash_rad = 12.0 + math.sin(flash_t * math.pi) * 80.0
-                flash_alpha = int(255 * math.sin(flash_t * math.pi) * global_alpha)
-                if flash_alpha > 0:
-                    grad = QRadialGradient(cx, cy - 30.0, flash_rad)
-                    grad.setColorAt(0.0, QColor(255, 255, 255, flash_alpha))
-                    grad.setColorAt(0.3, QColor(0, 240, 255, int(flash_alpha * 0.7)))
-                    grad.setColorAt(1.0, QColor(0, 240, 255, 0))
-                    painter.setPen(Qt.PenStyle.NoPen)
-                    painter.setBrush(QBrush(grad))
-                    painter.drawEllipse(QPointF(cx, cy - 30.0), flash_rad, flash_rad)
-
-            # Impact Shockwave at 2.5s
-            if self._time >= 2.5:
-                sw_prog = min(1.0, (self._time - 2.5) / 0.6)
-                sw_rad = sw_prog * 480.0
-                sw_alpha = int(255 * (1.0 - sw_prog) * global_alpha)
-                if sw_alpha > 0:
-                    sw_pen = QPen(QColor(0, 240, 255, sw_alpha), 3.0)
-                    painter.setPen(sw_pen)
-                    painter.setBrush(Qt.BrushStyle.NoBrush)
-                    painter.drawEllipse(QPointF(cx, cy + 55.0), sw_rad, sw_rad * 0.6)
-
-            # Impact Sparks
-            if self._impact_sparks:
-                painter.setPen(Qt.PenStyle.NoPen)
-                for s in self._impact_sparks:
-                    s_alpha = int(255 * s['alpha'] * global_alpha)
-                    if s_alpha <= 0: continue
-                    col = QColor(s['color'])
-                    col.setAlpha(s_alpha)
-                    painter.setBrush(col)
-                    painter.drawEllipse(QPointF(s['x'], s['y']), s['size'], s['size'])
-
-            # -------------------------------------------------------------
-            # 3. DRAW "JARVIS" TEXT & TYPOGRAPHY EFFECT
-            # -------------------------------------------------------------
-            if self._time >= 1.35:
-                text_t = min(1.0, (self._time - 1.35) / 0.45)
-                text_alpha = int(255 * text_t * global_alpha)
-
-                spacing_prog = min(1.0, (self._time - 1.35) / 1.5)
-                letter_spacing = 10.0 + (spacing_prog * 14.0)
-
-                font_jarvis = QFont("Segoe UI", 56, QFont.Weight.Black)
-                font_jarvis.setLetterSpacing(QFont.SpacingType.AbsoluteSpacing, letter_spacing)
-                painter.setFont(font_jarvis)
-
-                rect_jarvis = QRectF(cx - 500, cy - 85, 1000, 90)
-
-                # Outer text cyan glow
-                glow_col = QColor(0, 240, 255, int(text_alpha * 0.45))
-                painter.setPen(glow_col)
-                for ox, oy in [(-2, 0), (2, 0), (0, -2), (0, 2), (-1, -1), (1, 1)]:
-                    painter.drawText(rect_jarvis.translated(ox, oy), Qt.AlignmentFlag.AlignCenter, "JARVIS")
-
-                # Core white text with dynamic shimmer
-                if 1.8 <= self._time < 2.5:
-                    shim_t = (self._time - 1.8) / 0.7
-                    sweep_x = cx - 350 + (shim_t * 700)
-                    grad = QLinearGradient(sweep_x - 120, cy, sweep_x + 120, cy)
-                    grad.setColorAt(0.0, QColor(255, 255, 255, int(text_alpha * 0.75)))
-                    grad.setColorAt(0.5, QColor(0, 240, 255, text_alpha))
-                    grad.setColorAt(0.7, QColor(255, 255, 255, text_alpha))
-                    grad.setColorAt(1.0, QColor(255, 255, 255, int(text_alpha * 0.75)))
-                    painter.setPen(QPen(QBrush(grad), 1))
-                else:
-                    painter.setPen(QColor(255, 255, 255, text_alpha))
-
-                painter.drawText(rect_jarvis, Qt.AlignmentFlag.AlignCenter, "JARVIS")
-
-            # -------------------------------------------------------------
-            # 4. DRAW "AI - EVO" WITH MAXIMUM IMPACT (>= 2.5s)
-            # -------------------------------------------------------------
-            if self._time >= 2.5:
-                evo_dt = self._time - 2.5
-                evo_alpha = int(255 * min(1.0, evo_dt / 0.08) * global_alpha)
-
-                slam_scale = 1.0
-                if evo_dt < 0.18:
-                    slam_t = evo_dt / 0.18
-                    slam_scale = 1.5 - (0.5 * math.sin(slam_t * math.pi * 0.5))
-
-                painter.save()
-                painter.translate(cx, cy + 50.0)
-                painter.scale(slam_scale, slam_scale)
-
-                badge_w = 260.0
-                badge_h = 44.0
-                badge_rect = QRectF(-badge_w / 2.0, -badge_h / 2.0, badge_w, badge_h)
-
-                painter.setPen(QPen(QColor(0, 240, 255, int(evo_alpha * 0.8)), 1.5))
-                painter.setBrush(QColor(0, 20, 35, int(evo_alpha * 0.55)))
-                painter.drawRoundedRect(badge_rect, 22.0, 22.0)
-
-                font_sub = QFont("Segoe UI", 18, QFont.Weight.Bold)
-                font_sub.setLetterSpacing(QFont.SpacingType.AbsoluteSpacing, 4.0)
-                painter.setFont(font_sub)
-
-                painter.setPen(QColor(220, 230, 245, evo_alpha))
-                painter.drawText(QRectF(-badge_w / 2.0, -badge_h / 2.0, 125, badge_h), Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter, "AI - ")
-
-                font_evo = QFont("Segoe UI", 20, QFont.Weight.Black)
-                font_evo.setLetterSpacing(QFont.SpacingType.AbsoluteSpacing, 5.0)
-                painter.setFont(font_evo)
-
-                evo_glow = QColor(0, 240, 255, int(evo_alpha * 0.6))
-                painter.setPen(evo_glow)
-                for ox, oy in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
-                    painter.drawText(QRectF(-badge_w / 2.0 + 130, -badge_h / 2.0, 115, badge_h).translated(ox, oy), Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter, "EVO")
-
-                painter.setPen(QColor(0, 240, 255, evo_alpha))
-                painter.drawText(QRectF(-badge_w / 2.0 + 130, -badge_h / 2.0, 115, badge_h), Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter, "EVO")
-
-                painter.restore()
-
-            painter.end()
-        except Exception as e:
-            import traceback
-            traceback.print_exc()
+            t = self._time / self._total_duration
+            alpha = min(1.0, t / 0.35) if t < 0.7 else max(0.0, (1.0 - t) / 0.3)
+            p = QPainter(self)
+            p.setRenderHint(QPainter.RenderHint.Antialiasing)
+            p.setRenderHint(QPainter.RenderHint.TextAntialiasing)
+            p.fillRect(self.rect(), QColor(10, 11, 16, int(255 * min(1.0, alpha * 1.4))))
+            w, h = self.width(), self.height()
+            r, g, b = C.ACC_T
+            rad = min(w, h) * (0.16 + 0.03 * t)
+            rg = QRadialGradient(w / 2, h / 2 - 20, rad * 2)
+            rg.setColorAt(0.0, QColor(r, g, b, int(70 * alpha)))
+            rg.setColorAt(1.0, QColor(r, g, b, 0))
+            p.setPen(Qt.PenStyle.NoPen)
+            p.setBrush(QBrush(rg))
+            p.drawEllipse(QPointF(w / 2, h / 2 - 20), rad * 2, rad * 2)
+            f = QFont("Segoe UI", 26)
+            f.setWeight(QFont.Weight.Light)
+            p.setFont(f)
+            p.setPen(QColor(238, 242, 255, int(255 * alpha)))
+            text = f"Hi {self._greeting}" if self._greeting else "Hello"
+            p.drawText(self.rect(), Qt.AlignmentFlag.AlignCenter, text)
+            p.end()
+        except Exception:
+            pass
 
 
 class IncomingAlertDialog(QDialog):
@@ -8475,9 +8705,9 @@ class IncomingAlertDialog(QDialog):
         frame.setObjectName("IncomingAlertFrame")
         frame.setStyleSheet(f"""
             QFrame#IncomingAlertFrame {{
-                background: rgba(8, 8, 8, 245);
+                background: rgba(10, 11, 16, 245);
                 border: 1px solid {C.BORDER_B};
-                border-radius: 16px;
+                border-radius: 18px;
             }}
         """)
         root.addWidget(frame)
@@ -8513,7 +8743,7 @@ class IncomingAlertDialog(QDialog):
             btn.setFont(QFont("Segoe UI", 9, QFont.Weight.Bold))
             fg = C.WHITE
             border = C.BORDER_B if primary else C.BORDER
-            bg = "rgba(255,255,255,0.10)" if primary else "rgba(14,14,14,235)"
+            bg = "rgba(255,255,255,0.10)" if primary else "rgba(10, 11, 16,235)"
             if danger:
                 border = C.RED
                 bg = "rgba(60,10,10,235)"
@@ -8599,9 +8829,9 @@ class UltronMalfunctionDialog(QDialog):
         self._frame.setObjectName("UltronPopupFrame")
         self._frame.setStyleSheet(f"""
             QFrame#UltronPopupFrame {{
-                background: rgba(10, 12, 16, 252);
+                background: rgba(10, 11, 16, 252);
                 border: 2px solid {C.RED};
-                border-radius: 16px;
+                border-radius: 18px;
             }}
         """)
         root.addWidget(self._frame)
@@ -8621,16 +8851,16 @@ class UltronMalfunctionDialog(QDialog):
 
         self._title_lbl = QLabel("ULTRON AUTONOMOUS SELF-REPAIR")
         self._title_lbl.setFont(QFont("Segoe UI", 12, QFont.Weight.Bold))
-        self._title_lbl.setStyleSheet(f"color: {C.RED}; background: transparent; letter-spacing: 1px;")
+        self._title_lbl.setStyleSheet(f"color: {C.RED}; background: transparent;")
         head_layout.addWidget(self._title_lbl, 1)
 
         self._protocol_badge = QLabel("ULTRON PROTOCOL")
         self._protocol_badge.setFont(QFont("Segoe UI", 8, QFont.Weight.Bold))
         self._protocol_badge.setStyleSheet(f"""
             color: #ffffff;
-            background: rgba(255, 59, 48, 0.25);
+            background: rgba(255, 90, 100, 0.25);
             border: 1px solid {C.RED};
-            border-radius: 6px;
+            border-radius: 8px;
             padding: 3px 7px;
         """)
         head_layout.addWidget(self._protocol_badge)
@@ -8646,9 +8876,9 @@ class UltronMalfunctionDialog(QDialog):
         self._info_box = QFrame()
         self._info_box.setStyleSheet("""
             QFrame {
-                background: rgba(20, 24, 32, 220);
+                background: rgba(10, 11, 16, 220);
                 border: 1px solid rgba(255, 255, 255, 0.12);
-                border-radius: 10px;
+                border-radius: 12px;
             }
         """)
         info_lay = QVBoxLayout(self._info_box)
@@ -8662,7 +8892,7 @@ class UltronMalfunctionDialog(QDialog):
 
         self._exc_lbl = QLabel("Exception: In Progress")
         self._exc_lbl.setFont(QFont("Consolas", 9))
-        self._exc_lbl.setStyleSheet("color: #ff8580; background: transparent;")
+        self._exc_lbl.setStyleSheet("color: #ff5a64; background: transparent;")
         self._exc_lbl.setWordWrap(True)
         info_lay.addWidget(self._exc_lbl)
         self._lay.addWidget(self._info_box)
@@ -8682,7 +8912,7 @@ class UltronMalfunctionDialog(QDialog):
             QScrollArea {
                 background: #06070a;
                 border: 1px solid rgba(0, 229, 255, 0.20);
-                border-radius: 8px;
+                border-radius: 10px;
             }
         """)
         diff_inner = QWidget()
@@ -8693,7 +8923,7 @@ class UltronMalfunctionDialog(QDialog):
 
         self._diff_target = QLabel("")
         self._diff_target.setFont(QFont("Consolas", 9))
-        self._diff_target.setStyleSheet("color: #ff7070; background: rgba(80, 20, 20, 0.40); padding: 4px; border-radius: 4px;")
+        self._diff_target.setStyleSheet("color: #ff5a64; background: rgba(80, 20, 20, 0.40); padding: 4px; border-radius: 4px;")
         self._diff_target.setWordWrap(True)
         self._diff_lay.addWidget(self._diff_target)
 
@@ -8742,7 +8972,7 @@ class UltronMalfunctionDialog(QDialog):
                 background: rgba(255, 255, 255, 0.08);
                 color: #ffffff;
                 border: 1px solid {C.BORDER_B};
-                border-radius: 8px;
+                border-radius: 10px;
                 padding: 0 16px;
             }}
             QPushButton:hover {{
@@ -8794,20 +9024,20 @@ class UltronMalfunctionDialog(QDialog):
         if percent >= 100:
             self._frame.setStyleSheet(f"""
                 QFrame#UltronPopupFrame {{
-                    background: rgba(10, 12, 16, 252);
+                    background: rgba(10, 11, 16, 252);
                     border: 2px solid {C.GREEN};
-                    border-radius: 16px;
+                    border-radius: 18px;
                 }}
             """)
             self._title_icon.setText("🛡️")
             self._title_lbl.setText("ULTRON SELF-REPAIR COMPLETED")
-            self._title_lbl.setStyleSheet(f"color: {C.GREEN}; background: transparent; letter-spacing: 1px;")
-            self._protocol_badge.setText("SYSTEM HEALTHY")
+            self._title_lbl.setStyleSheet(f"color: {C.GREEN}; background: transparent;")
+            self._protocol_badge.setText("All good")
             self._protocol_badge.setStyleSheet(f"""
                 color: #ffffff;
-                background: rgba(55, 255, 95, 0.25);
+                background: rgba(110, 193, 255, 0.25);
                 border: 1px solid {C.GREEN};
-                border-radius: 6px;
+                border-radius: 8px;
                 padding: 3px 7px;
             """)
             self._status_lbl.setStyleSheet(f"color: {C.GREEN}; background: transparent;")
@@ -8849,7 +9079,7 @@ class MeetingOverlay(QWidget):
         frame = QFrame()
         frame.setStyleSheet(f"""
             QFrame {{
-                background: rgba(5, 5, 5, 232);
+                background: rgba(10, 11, 16, 232);
                 border: 1px solid {C.BORDER_B};
                 border-radius: 18px;
             }}
@@ -8866,7 +9096,7 @@ class MeetingOverlay(QWidget):
         self._badge = QLabel("MEETING MODE")
         self._badge.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
         self._badge.setStyleSheet(
-            f"color: {C.WHITE}; background: rgba(255,255,255,0.06); border: 1px solid {C.BORDER_B}; border-radius: 10px; padding: 4px 10px;"
+            f"color: {C.WHITE}; background: rgba(255,255,255,0.06); border: 1px solid {C.BORDER_B}; border-radius: 12px; padding: 4px 10px;"
         )
         top.addWidget(self._badge)
 
@@ -9024,7 +9254,7 @@ class FloatingLauncher(QWidget):
 
         self._anim_timer = QTimer(self)
         self._anim_timer.timeout.connect(self._anim_tick)
-        self._anim_timer.start(25)  # 40fps
+        self._anim_timer.start(50)  # 20fps
 
         self._single_timer = QTimer(self)
         self._single_timer.setSingleShot(True)
@@ -9075,7 +9305,7 @@ class FloatingLauncher(QWidget):
     def showEvent(self, event):
         super().showEvent(event)
         if hasattr(self, "_anim_timer") and not self._anim_timer.isActive():
-            self._anim_timer.start(25)
+            self._anim_timer.start(50)
 
     def _anim_tick(self):
         if not self.isVisible():
@@ -9084,11 +9314,11 @@ class FloatingLauncher(QWidget):
             return
         import math
         # State-dependent spin speeds
-        spin_speed = 3.2 if self._state == "thinking" else (2.4 if self._state in ("listening", "speaking") else 1.5)
+        spin_speed = 6.4 if self._state == "thinking" else (4.8 if self._state in ("listening", "speaking") else 3.0)
         self._anim_angle = (self._anim_angle + spin_speed) % 360.0
         self._ring2_angle = (self._ring2_angle - spin_speed * 0.75) % 360.0
 
-        breath_step = 0.04 if self._state in ("listening", "speaking", "thinking") else 0.022
+        breath_step = 0.08 if self._state in ("listening", "speaking", "thinking") else 0.044
         self._breath_val += breath_step * self._breath_dir
         if self._breath_val >= 1.0:
             self._breath_val = 1.0
@@ -9130,7 +9360,7 @@ class FloatingLauncher(QWidget):
         if self._audio_lvl > 0.05:
             shock_r = 38.0 + breath * 4.0 + self._audio_lvl * 20.0
             shock_alpha = int(min(220, self._audio_lvl * 240))
-            shock_pen = QPen(QColor(0, 229, 255, shock_alpha), 1.8)
+            shock_pen = QPen(QColor(*C.ACC_T, shock_alpha), 1.8)
             painter.setPen(shock_pen)
             painter.setBrush(Qt.BrushStyle.NoBrush)
             painter.drawEllipse(QPointF(cx, cy), shock_r, shock_r)
@@ -9290,17 +9520,17 @@ class FloatingLauncher(QWidget):
         menu = QMenu(self)
         menu.setStyleSheet(f"""
             QMenu {{
-                background: rgba(14, 16, 22, 248);
+                background: rgba(10, 11, 16, 248);
                 color: #FFFFFF;
                 border: 1px solid rgba(0, 229, 255, 0.45);
-                border-radius: 12px;
+                border-radius: 14px;
                 padding: 6px;
                 font-family: 'Segoe UI';
                 font-size: 12px;
             }}
             QMenu::item {{
                 padding: 7px 18px;
-                border-radius: 6px;
+                border-radius: 8px;
             }}
             QMenu::item:selected {{
                 background: rgba(0, 229, 255, 0.20);
@@ -9438,7 +9668,7 @@ class FloatingGestureCard(QWidget):
         self.btn.setFixedSize(100, 36)
         self.btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn.setStyleSheet(
-            "QPushButton { background: #0c0e12; color: #ffffff; border: 1px solid rgba(0, 229, 255, 0.20); border-radius: 8px; font-weight: bold; }"
+            "QPushButton { background: #11131a; color: #ffffff; border: 1px solid rgba(0, 229, 255, 0.20); border-radius: 10px; font-weight: bold; }"
             "QPushButton:hover { color: #00e5ff; border: 1px solid #00e5ff; }"
         )
         self.btn.clicked.connect(self.toggle_preview)
@@ -9459,14 +9689,14 @@ class FloatingGestureCard(QWidget):
             self.preview.hide()
             self.preview._stop_camera()
             self.btn.setStyleSheet(
-                "QPushButton { background: #0c0e12; color: #ffffff; border: 1px solid rgba(0, 229, 255, 0.20); border-radius: 8px; font-weight: bold; }"
+                "QPushButton { background: #11131a; color: #ffffff; border: 1px solid rgba(0, 229, 255, 0.20); border-radius: 10px; font-weight: bold; }"
                 "QPushButton:hover { color: #00e5ff; border: 1px solid #00e5ff; }"
             )
         else:
             self.preview.show()
             self.preview._start_camera()
             self.btn.setStyleSheet(
-                "QPushButton { background: rgba(0, 229, 255, 0.15); color: #00e5ff; border: 1px solid #00e5ff; border-radius: 8px; font-weight: bold; }"
+                "QPushButton { background: rgba(0, 229, 255, 0.15); color: #00e5ff; border: 1px solid #00e5ff; border-radius: 10px; font-weight: bold; }"
                 "QPushButton:hover { background: rgba(0, 229, 255, 0.25); }"
             )
         self.adjustSize()
@@ -9519,6 +9749,9 @@ class MainWindow(QMainWindow):
         )
 
         self.on_text_command  = None
+        self.on_voice_volume = None
+        self.on_voice_pause = None
+        self.on_voice_stop = None
         self.on_attention_action = None
         self.on_chat_event = None
         self.on_remote_clicked = None
@@ -9569,12 +9802,12 @@ class MainWindow(QMainWindow):
 
         for btn in (self._btn_dashboard, self._btn_chat, self._btn_settings):
             btn.setCursor(Qt.CursorShape.PointingHandCursor)
-            btn.setStyleSheet(f"QPushButton {{ background: rgba(12,14,18,200); color: {C.WHITE}; border: 1px solid {C.BORDER_B}; border-radius: 8px; padding: 5px 15px; font-weight: bold; font-family: 'Segoe UI'; font-size: 13px; }} QPushButton:hover {{ color: {C.PRI}; border: 1px solid {C.PRI}; }}")
+            btn.setStyleSheet(f"QPushButton {{ background: rgba(255, 255, 255, 0.05); color: {C.TEXT_MED}; border: none; border-radius: 16px; padding: 7px 18px; font-weight: 500; font-family: 'Segoe UI'; font-size: 13px; }} QPushButton:hover {{ background: rgba(255, 255, 255, 0.11); color: {C.WHITE}; }}")
         
-        self._status_badge = QLabel("● ONLINE")
+        self._status_badge = QLabel("● Online")
         self._status_badge.setFont(QFont("Segoe UI", 9, QFont.Weight.Bold))
         self._status_badge.setStyleSheet(
-            f"color: {C.PRI}; background: rgba(12,14,18,220); border: 1px solid {C.BORDER_B}; border-radius: 8px; padding: 5px 12px;"
+            f"color: {C.PRI}; background: rgba(255, 255, 255, 0.06); border: none; border-radius: 15px; padding: 6px 14px;"
         )
         taskbar_lay.addWidget(self._status_badge)
 
@@ -9587,9 +9820,9 @@ class MainWindow(QMainWindow):
         self._live_subtitle_pill.setObjectName("LiveSubtitlePill")
         self._live_subtitle_pill.setStyleSheet("""
             QFrame#LiveSubtitlePill {
-                background: rgba(14, 18, 27, 230);
+                background: rgba(10, 11, 16, 230);
                 border: 1px solid rgba(0, 229, 255, 0.32);
-                border-radius: 8px;
+                border-radius: 10px;
                 padding: 2px 10px;
             }
         """)
@@ -9597,7 +9830,7 @@ class MainWindow(QMainWindow):
         sub_lay.setContentsMargins(6, 2, 6, 2)
         sub_lay.setSpacing(8)
 
-        self._live_sub_speaker = QLabel("● LISTENING")
+        self._live_sub_speaker = QLabel("● Listening")
         self._live_sub_speaker.setFont(QFont("Segoe UI", 8, QFont.Weight.Bold))
         self._live_sub_speaker.setStyleSheet("color: #00e5ff; background: transparent; border: none;")
 
@@ -9612,14 +9845,14 @@ class MainWindow(QMainWindow):
         taskbar_lay.addStretch()
 
         # Omni-Command Palette Quick Launcher
-        self._btn_search = QPushButton("🔍 Search / Palette (Ctrl+K)")
+        self._btn_search = QPushButton("Search   Ctrl+K")
         self._btn_search.setCursor(Qt.CursorShape.PointingHandCursor)
         self._btn_search.setStyleSheet(f"""
             QPushButton {{
-                background: rgba(0, 229, 255, 0.08);
-                color: {C.ACC};
-                border: 1px solid rgba(0, 229, 255, 0.30);
-                border-radius: 8px;
+                background: rgba(255, 255, 255, 0.05);
+                color: {C.TEXT_MED};
+                border: none;
+                border-radius: 16px;
                 padding: 5px 14px;
                 font-weight: bold;
                 font-family: 'Segoe UI';
@@ -10022,11 +10255,11 @@ class MainWindow(QMainWindow):
         if hasattr(self, "_btn_chat"):
             if not getattr(self, "_right_collapsed", False):
                 self._btn_chat.setStyleSheet(
-                    f"QPushButton {{ background: rgba(0, 229, 255, 0.18); color: {C.PRI}; border: 1px solid {C.PRI}; border-radius: 8px; padding: 5px 15px; font-weight: bold; font-family: 'Segoe UI'; font-size: 13px; }}"
+                    f"QPushButton {{ background: rgba(0, 229, 255, 0.20); color: {C.WHITE}; border: none; border-radius: 16px; padding: 7px 18px; font-weight: 600; font-family: 'Segoe UI'; font-size: 13px; }}"
                 )
             else:
                 self._btn_chat.setStyleSheet(
-                    f"QPushButton {{ background: rgba(12,14,18,200); color: {C.WHITE}; border: 1px solid {C.BORDER_B}; border-radius: 8px; padding: 5px 15px; font-weight: bold; font-family: 'Segoe UI'; font-size: 13px; }} QPushButton:hover {{ color: {C.PRI}; border: 1px solid {C.PRI}; }}"
+                    f"QPushButton {{ background: rgba(255, 255, 255, 0.05); color: {C.TEXT_MED}; border: none; border-radius: 16px; padding: 7px 18px; font-weight: 500; font-family: 'Segoe UI'; font-size: 13px; }} QPushButton:hover {{ background: rgba(255, 255, 255, 0.11); color: {C.WHITE}; }}"
                 )
         if hasattr(self, "_center_panel"):
             self._center_panel.update()
@@ -10051,20 +10284,20 @@ class MainWindow(QMainWindow):
         if hasattr(self, "_btn_dashboard"):
             if cur_idx == 0:
                 self._btn_dashboard.setStyleSheet(
-                    f"QPushButton {{ background: rgba(0, 229, 255, 0.18); color: {C.PRI}; border: 1px solid {C.PRI}; border-radius: 8px; padding: 5px 15px; font-weight: bold; font-family: 'Segoe UI'; font-size: 13px; }}"
+                    f"QPushButton {{ background: rgba(0, 229, 255, 0.20); color: {C.WHITE}; border: none; border-radius: 16px; padding: 7px 18px; font-weight: 600; font-family: 'Segoe UI'; font-size: 13px; }}"
                 )
             else:
                 self._btn_dashboard.setStyleSheet(
-                    f"QPushButton {{ background: rgba(12,14,18,200); color: {C.WHITE}; border: 1px solid {C.BORDER_B}; border-radius: 8px; padding: 5px 15px; font-weight: bold; font-family: 'Segoe UI'; font-size: 13px; }} QPushButton:hover {{ color: {C.PRI}; border: 1px solid {C.PRI}; }}"
+                    f"QPushButton {{ background: rgba(255, 255, 255, 0.05); color: {C.TEXT_MED}; border: none; border-radius: 16px; padding: 7px 18px; font-weight: 500; font-family: 'Segoe UI'; font-size: 13px; }} QPushButton:hover {{ background: rgba(255, 255, 255, 0.11); color: {C.WHITE}; }}"
                 )
         if hasattr(self, "_btn_settings"):
             if cur_idx in (3, 4):
                 self._btn_settings.setStyleSheet(
-                    f"QPushButton {{ background: rgba(0, 229, 255, 0.18); color: {C.PRI}; border: 1px solid {C.PRI}; border-radius: 8px; padding: 5px 15px; font-weight: bold; font-family: 'Segoe UI'; font-size: 13px; }}"
+                    f"QPushButton {{ background: rgba(0, 229, 255, 0.20); color: {C.WHITE}; border: none; border-radius: 16px; padding: 7px 18px; font-weight: 600; font-family: 'Segoe UI'; font-size: 13px; }}"
                 )
             else:
                 self._btn_settings.setStyleSheet(
-                    f"QPushButton {{ background: rgba(12,14,18,200); color: {C.WHITE}; border: 1px solid {C.BORDER_B}; border-radius: 8px; padding: 5px 15px; font-weight: bold; font-family: 'Segoe UI'; font-size: 13px; }} QPushButton:hover {{ color: {C.PRI}; border: 1px solid {C.PRI}; }}"
+                    f"QPushButton {{ background: rgba(255, 255, 255, 0.05); color: {C.TEXT_MED}; border: none; border-radius: 16px; padding: 7px 18px; font-weight: 500; font-family: 'Segoe UI'; font-size: 13px; }} QPushButton:hover {{ background: rgba(255, 255, 255, 0.11); color: {C.WHITE}; }}"
                 )
 
 
@@ -10311,15 +10544,15 @@ class MainWindow(QMainWindow):
             self._mute_btn.setStyleSheet(f"""
                 QPushButton {{
                     background: #1a1010; color: {C.RED};
-                    border: 1px solid {C.RED}; border-radius: 16px;
+                    border: 1px solid {C.RED}; border-radius: 18px;
                 }}
             """)
         else:
             self._mute_btn.setText("Mic")
             self._mute_btn.setStyleSheet(f"""
                 QPushButton {{
-                    background: rgba(16,16,16,235); color: {C.WHITE};
-                    border: 1px solid {C.BORDER_B}; border-radius: 16px;
+                    background: rgba(10, 11, 16,235); color: {C.WHITE};
+                    border: 1px solid {C.BORDER_B}; border-radius: 18px;
                 }}
                 QPushButton:hover {{ border: 1px solid {C.WHITE}; }}
             """)
@@ -10817,16 +11050,16 @@ class MainWindow(QMainWindow):
         if last_spk != speaker_upper:
             self._last_sub_speaker = speaker_upper
             if hasattr(self, "_live_sub_speaker") and self._live_sub_speaker:
-                self._live_sub_speaker.setText(f"● {speaker_upper}")
+                self._live_sub_speaker.setText(f"● {speaker.strip().title()}")
                 if speaker_upper in ("YOU", "USER"):
                     self._live_sub_speaker.setStyleSheet("color: #00e5ff; background: transparent; border: none;")
                 elif speaker_upper in ("JARVIS", "AI", "MODEL"):
-                    self._live_sub_speaker.setStyleSheet("color: #10b981; background: transparent; border: none;")
+                    self._live_sub_speaker.setStyleSheet("color: #6ec1ff; background: transparent; border: none;")
                 else:
-                    self._live_sub_speaker.setStyleSheet("color: #f59e0b; background: transparent; border: none;")
+                    self._live_sub_speaker.setStyleSheet("color: #ff8a6b; background: transparent; border: none;")
 
             if hasattr(self, "_desktop_sub_badge") and self._desktop_sub_badge:
-                self._desktop_sub_badge.setText(f"● {speaker_upper}")
+                self._desktop_sub_badge.setText(f"● {speaker.strip().title()}")
                 if speaker_upper in ("YOU", "USER"):
                     self._desktop_sub_badge.setStyleSheet("""
                         color: #00e5ff;
@@ -10837,7 +11070,7 @@ class MainWindow(QMainWindow):
                     """)
                 elif speaker_upper in ("JARVIS", "AI", "MODEL"):
                     self._desktop_sub_badge.setStyleSheet("""
-                        color: #10b981;
+                        color: #6ec1ff;
                         background: rgba(16, 185, 129, 0.22);
                         border: 1px solid rgba(16, 185, 129, 0.60);
                         border-radius: 13px;
@@ -10845,7 +11078,7 @@ class MainWindow(QMainWindow):
                     """)
                 else:
                     self._desktop_sub_badge.setStyleSheet("""
-                        color: #f59e0b;
+                        color: #ff8a6b;
                         background: rgba(245, 158, 11, 0.22);
                         border: 1px solid rgba(245, 158, 11, 0.60);
                         border-radius: 13px;
@@ -10881,7 +11114,7 @@ class MainWindow(QMainWindow):
         try:
             self._last_sub_speaker = None
             if hasattr(self, "_desktop_sub_badge") and self._desktop_sub_badge:
-                self._desktop_sub_badge.setText("● LIVE VOICE")
+                self._desktop_sub_badge.setText("● Live")
                 self._desktop_sub_badge.setStyleSheet("""
                     color: #00e5ff;
                     background: rgba(0, 229, 255, 0.18);
@@ -10896,7 +11129,46 @@ class MainWindow(QMainWindow):
         except Exception:
             pass
 
+    def _on_ball_volume(self, pct: int):
+        self._vol_save_tmr.start()
+        cb = getattr(self, "on_voice_volume", None)
+        if cb:
+            try:
+                cb(int(pct))
+            except Exception:
+                pass
+
+    def _save_ball_volume(self):
+        try:
+            s = self._load_app_settings()
+            s["voice_volume"] = int(self._pulse_ball.volume())
+            self._save_app_settings(s)
+        except Exception:
+            pass
+
+    def _on_ball_stop(self):
+        cb = getattr(self, "on_voice_stop", None)
+        if cb:
+            try:
+                cb()
+            except Exception:
+                pass
+
+    def _on_ball_pause(self, paused: bool):
+        cb = getattr(self, "on_voice_pause", None)
+        if cb:
+            try:
+                cb(bool(paused))
+            except Exception:
+                pass
+        try:
+            self._log.append_log("SYS: Voice paused. Jarvis will stay quiet." if paused else "SYS: Voice resumed.")
+        except Exception:
+            pass
+
     def _on_audio_level_sig(self, level: float):
+        if hasattr(self, "_pulse_ball") and self._pulse_ball:
+            self._pulse_ball.set_audio_level(level)
         if hasattr(self, "_bg_widget") and hasattr(self._bg_widget, "set_audio_level"):
             self._bg_widget.set_audio_level(level)
         if hasattr(self, "_chat_workspace") and hasattr(self._chat_workspace, "set_audio_level"):
@@ -10951,6 +11223,8 @@ class MainWindow(QMainWindow):
         self._state = state
         if hasattr(self, "_bg_widget") and hasattr(self._bg_widget, "set_ai_state"):
             self._bg_widget.set_ai_state(state)
+        if hasattr(self, "_pulse_ball") and self._pulse_ball:
+            self._pulse_ball.set_state(state)
         if hasattr(self, "_chat_workspace") and hasattr(self._chat_workspace, "set_state"):
             self._chat_workspace.set_state(state)
         if hasattr(self, "_command_bar") and hasattr(self._command_bar, "set_state"):
@@ -10961,19 +11235,19 @@ class MainWindow(QMainWindow):
         # Update top taskbar status badge
         if hasattr(self, "_status_badge"):
             badge_map = {
-                "LISTENING":  ("◉ LISTENING",  "#00e5ff", "rgba(0, 229, 255, 0.4)",  "rgba(0, 229, 255, 0.08)"),
-                "SPEAKING":   ("◈ SPEAKING",   "#00e5ff", "rgba(0, 229, 255, 0.5)",  "rgba(0, 229, 255, 0.12)"),
-                "THINKING":   ("◒ THINKING",   "#ff9100", "rgba(255, 145, 0, 0.45)", "rgba(255, 145, 0, 0.08)"),
-                "PROCESSING": ("◒ PROCESSING", "#ff9100", "rgba(255, 145, 0, 0.45)", "rgba(255, 145, 0, 0.08)"),
-                "EXECUTING":  ("⚡ EXECUTING",  "#7c4dff", "rgba(124, 77, 255, 0.45)","rgba(124, 77, 255, 0.08)"),
-                "WORKING":    ("⚡ WORKING",    "#7c4dff", "rgba(124, 77, 255, 0.45)","rgba(124, 77, 255, 0.08)"),
-                "MUTED":      ("⊗ MUTED",      "#ff3b30", "rgba(255, 59, 48, 0.45)", "rgba(255, 59, 48, 0.08)"),
-                "SCANNING":   ("◓ SCANNING",   "#37ff5f", "rgba(55, 255, 95, 0.45)", "rgba(55, 255, 95, 0.08)"),
+                "LISTENING":  ("● Listening",  "#00e5ff", "rgba(0, 229, 255, 0.4)",  "rgba(0, 229, 255, 0.08)"),
+                "SPEAKING":   ("● Speaking",   "#00e5ff", "rgba(0, 229, 255, 0.5)",  "rgba(0, 229, 255, 0.12)"),
+                "THINKING":   ("● Thinking",   "#ff8a6b", "rgba(255, 138, 107, 0.45)", "rgba(255, 138, 107, 0.08)"),
+                "PROCESSING": ("● Thinking",   "#ff8a6b", "rgba(255, 138, 107, 0.45)", "rgba(255, 138, 107, 0.08)"),
+                "EXECUTING":  ("● Working",    "#8f8cff", "rgba(143, 140, 255, 0.45)","rgba(143, 140, 255, 0.08)"),
+                "WORKING":    ("● Working",    "#8f8cff", "rgba(143, 140, 255, 0.45)","rgba(143, 140, 255, 0.08)"),
+                "MUTED":      ("● Muted",      "#ff5a64", "rgba(255, 90, 100, 0.45)", "rgba(255, 90, 100, 0.08)"),
+                "SCANNING":   ("● Looking",    "#6ec1ff", "rgba(110, 193, 255, 0.45)", "rgba(110, 193, 255, 0.08)"),
             }
-            lbl_txt, col, border, bg = badge_map.get(state, ("● ONLINE", "#00e5ff", "rgba(0, 229, 255, 0.25)", "rgba(12,14,18,220)"))
+            lbl_txt, col, border, bg = badge_map.get(state, ("● Online", "#00e5ff", "rgba(0, 229, 255, 0.25)", "rgba(10, 11, 16,220)"))
             self._status_badge.setText(lbl_txt)
             self._status_badge.setStyleSheet(
-                f"color: {col}; background: {bg}; border: 1px solid {border}; border-radius: 8px; padding: 5px 12px;"
+                f"color: {col}; background: {bg}; border: none; border-radius: 15px; padding: 6px 14px;"
             )
 
         # Update command row input placeholder
@@ -11006,15 +11280,15 @@ class MainWindow(QMainWindow):
 
         if hasattr(self, "_status_chip"):
             chip_text = {
-                "THINKING": "● WORKING",
-                "SPEAKING": "● SPEAKING",
-                "MUTED":    "● MUTED",
-            }.get(state, "● ONLINE")
+                "THINKING": "● Working",
+                "SPEAKING": "● Speaking",
+                "MUTED":    "● Muted",
+            }.get(state, "● Online")
             self._status_chip.setText(chip_text)
             color = C.PRI if state == "MUTED" else C.GREEN if state in ("LISTENING", "SPEAKING") else C.WHITE
             border = C.PRI if state in ("MUTED", "THINKING") else "rgba(255,255,255,0.12)"
             self._status_chip.setStyleSheet(
-                f"color: {color}; background: rgba(11,12,16,238); border: 1px solid {border}; border-radius: 999px; padding: 7px 14px;"
+                f"color: {color}; background: rgba(10, 11, 16,238); border: 1px solid {border}; border-radius: 999px; padding: 7px 14px;"
             )
         if hasattr(self, "_time_status_lbl"):
             status_text = {
@@ -11358,7 +11632,19 @@ class MainWindow(QMainWindow):
         command_row.setContentsMargins(6, 0, 6, 0)
         command_row.setSpacing(12)
         command_row.addWidget(self._hud_result_wing, 0, Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
-        command_row.addStretch(1)
+        self._pulse_ball = PulseBall()
+        try:
+            self._pulse_ball.set_volume(int(self._load_app_settings().get("voice_volume", 100)))
+        except Exception:
+            pass
+        self._pulse_ball.volume_changed.connect(self._on_ball_volume)
+        self._pulse_ball.pause_toggled.connect(self._on_ball_pause)
+        self._pulse_ball.stop_requested.connect(self._on_ball_stop)
+        self._vol_save_tmr = QTimer(self)
+        self._vol_save_tmr.setSingleShot(True)
+        self._vol_save_tmr.setInterval(500)
+        self._vol_save_tmr.timeout.connect(self._save_ball_volume)
+        command_row.addWidget(self._pulse_ball, 1)
         command_row.addWidget(self._hud_telemetry_wing, 0, Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         stage.addLayout(command_row, stretch=1)
 
@@ -11376,10 +11662,10 @@ class MainWindow(QMainWindow):
         self._desktop_subtitle_bar.setStyleSheet("""
             QFrame#DesktopSubtitleBar {
                 background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
-                    stop:0 rgba(8, 14, 26, 0.92),
+                    stop:0 rgba(10, 11, 16, 0.92),
                     stop:0.5 rgba(14, 24, 42, 0.95),
-                    stop:1 rgba(8, 14, 26, 0.92));
-                border: 1.5px solid rgba(0, 229, 255, 0.65);
+                    stop:1 rgba(10, 11, 16, 0.92));
+                border: 1px solid rgba(255, 255, 255, 0.10);
                 border-radius: 25px;
             }
         """)
@@ -11387,7 +11673,7 @@ class MainWindow(QMainWindow):
         sub_layout.setContentsMargins(18, 4, 18, 4)
         sub_layout.setSpacing(12)
 
-        self._desktop_sub_badge = QLabel("● LIVE VOICE")
+        self._desktop_sub_badge = QLabel("● Live")
         self._desktop_sub_badge.setFont(QFont("Segoe UI", 9, QFont.Weight.Bold))
         self._desktop_sub_badge.setStyleSheet("""
             color: #00e5ff;
@@ -11437,7 +11723,7 @@ class MainWindow(QMainWindow):
         w.setFixedWidth(_RIGHT_W)
         w.setStyleSheet(
             f"QWidget#ModularRightSidebar {{ "
-            f"  background: rgba(8, 10, 15, 0.22); "
+            f"  background: rgba(10, 11, 16, 0.22); "
             f"  border-left: 1px solid rgba(0, 229, 255, 0.25); "
             f"}}"
         )
@@ -11452,12 +11738,12 @@ class MainWindow(QMainWindow):
 
         pulse_dot = QLabel("●")
         pulse_dot.setFont(QFont("Segoe UI", 10))
-        pulse_dot.setStyleSheet("color: #37ff5f; background: transparent;")
+        pulse_dot.setStyleSheet("color: #6ec1ff; background: transparent;")
         header_bar.addWidget(pulse_dot)
 
         header_title = QLabel("JARVIS CHAT")
         header_title.setFont(QFont("Segoe UI", 11, QFont.Weight.Bold))
-        header_title.setStyleSheet(f"color: {C.WHITE}; background: transparent; letter-spacing: 1px;")
+        header_title.setStyleSheet(f"color: {C.WHITE}; background: transparent;")
         header_bar.addWidget(header_title)
 
         header_bar.addStretch(1)
@@ -11468,7 +11754,7 @@ class MainWindow(QMainWindow):
         self._new_chat_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self._new_chat_btn.setToolTip("Start a new chat session")
         self._new_chat_btn.setStyleSheet(
-            f"QPushButton {{ background: rgba(0, 229, 255, 0.10); color: {C.PRI}; border: 1px solid rgba(0, 229, 255, 0.30); border-radius: 6px; padding: 2px 6px; }}"
+            f"QPushButton {{ background: rgba(0, 229, 255, 0.10); color: {C.PRI}; border: 1px solid rgba(0, 229, 255, 0.30); border-radius: 8px; padding: 2px 6px; }}"
             f"QPushButton:hover {{ background: rgba(0, 229, 255, 0.22); color: #FFFFFF; border-color: {C.PRI}; }}"
         )
         self._new_chat_btn.clicked.connect(lambda: self._inline_workspace.new_conversation() if hasattr(self, "_inline_workspace") else None)
@@ -11480,7 +11766,7 @@ class MainWindow(QMainWindow):
         self._right_toggle_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self._right_toggle_btn.setToolTip("Collapse Chat Sidebar")
         self._right_toggle_btn.setStyleSheet(
-            f"QPushButton {{ background: rgba(255,255,255,0.06); color: {C.WHITE}; border: 1px solid rgba(255,255,255,0.12); border-radius: 6px; }}"
+            f"QPushButton {{ background: rgba(255,255,255,0.06); color: {C.WHITE}; border: 1px solid rgba(255,255,255,0.12); border-radius: 8px; }}"
             f"QPushButton:hover {{ color: {C.PRI}; border-color: {C.PRI}; background: rgba(0, 229, 255,0.12); }}"
         )
         self._right_toggle_btn.clicked.connect(self._toggle_right_sidebar)
@@ -11535,7 +11821,7 @@ class MainWindow(QMainWindow):
         try:
             shadow = QGraphicsDropShadowEffect(bar)
             shadow.setBlurRadius(24)
-            shadow.setColor(QColor(0, 229, 255, 45))
+            shadow.setColor(QColor(*C.ACC_T, 45))
             shadow.setOffset(0, 0)
             bar.setGraphicsEffect(shadow)
         except Exception:
@@ -11642,7 +11928,7 @@ class SystemConnectivitySidebar(QFrame):
                 background: rgba(255,255,255,0.03);
                 color: {C.WHITE};
                 border: 1px solid rgba(255,255,255,0.08);
-                border-radius: 12px;
+                border-radius: 14px;
                 text-align: left;
                 padding: 10px 12px;
             }}
@@ -11655,7 +11941,7 @@ class SystemConnectivitySidebar(QFrame):
         try:
             shadow = QGraphicsDropShadowEffect(self)
             shadow.setBlurRadius(20)
-            shadow.setColor(QColor(0, 229, 255, 80))
+            shadow.setColor(QColor(*C.ACC_T, 80))
             shadow.setOffset(0, 0)
             self.setGraphicsEffect(shadow)
         except: pass
@@ -11665,16 +11951,16 @@ class SystemConnectivitySidebar(QFrame):
 
         title = QLabel("SYSTEM STATUS")
         title.setFont(QFont("Segoe UI", 13, QFont.Weight.Bold))
-        title.setStyleSheet(f"color: {C.WHITE}; letter-spacing: 1px;")
+        title.setStyleSheet(f"color: {C.WHITE};")
         lay.addWidget(title)
 
         self._status_card = QFrame()
-        self._status_card.setStyleSheet("QFrame { background: rgba(14,16,20,0.88); border: 1px solid rgba(53,255,117,0.18); border-radius: 14px; }")
+        self._status_card.setStyleSheet("QFrame { background: rgba(10, 11, 16,0.88); border: 1px solid rgba(53,255,117,0.18); border-radius: 16px; }")
         s_lay = QVBoxLayout(self._status_card)
         s_lay.setContentsMargins(16, 14, 16, 14)
         s_lay.setSpacing(10)
         self._online_lbl = QLabel("ΓùÅ System Online")
-        self._online_lbl.setStyleSheet("color: #35ff75; font-weight: 700;")
+        self._online_lbl.setStyleSheet("color: #6ec1ff; font-weight: 700;")
         self._desc_lbl = QLabel("All systems are operational.")
         self._desc_lbl.setStyleSheet(f"color: {C.TEXT_MED};")
         s_lay.addWidget(self._online_lbl)
@@ -11703,7 +11989,7 @@ class SystemConnectivitySidebar(QFrame):
 
         quick_title = QLabel("QUICK ACTIONS")
         quick_title.setFont(QFont("Segoe UI", 13, QFont.Weight.Bold))
-        quick_title.setStyleSheet(f"color: {C.WHITE}; letter-spacing: 1px;")
+        quick_title.setStyleSheet(f"color: {C.WHITE};")
         lay.addWidget(quick_title)
 
         self._quick_actions = QVBoxLayout()
@@ -11716,12 +12002,12 @@ class SystemConnectivitySidebar(QFrame):
         self._mk_quick_action("Γ¼ç Check for Updates", QStyle.StandardPixmap.SP_ArrowDown, self._check_updates)
 
         tip = QFrame()
-        tip.setStyleSheet("QFrame { background: rgba(24, 18, 8, 0.85); border: 1px solid rgba(255, 191, 0, 0.22); border-radius: 14px; }")
+        tip.setStyleSheet("QFrame { background: rgba(10, 11, 16, 0.85); border: 1px solid rgba(255, 191, 0, 0.22); border-radius: 16px; }")
         tip_lay = QVBoxLayout(tip)
         tip_lay.setContentsMargins(16, 14, 16, 14)
         tip_lay.setSpacing(8)
         tip_title = QLabel("Security Tip")
-        tip_title.setStyleSheet("color: #ffbf00; font-weight: 700;")
+        tip_title.setStyleSheet("color: #ff8a6b; font-weight: 700;")
         tip_body = QLabel('"Never share your API keys with anyone."')
         tip_body.setWordWrap(True)
         tip_body.setStyleSheet(f"color: {C.TEXT_MED};")
@@ -11803,8 +12089,8 @@ class SettingsHubPage(QWidget):
         lay.setSpacing(25)
 
         title = QLabel("Settings Hub")
-        title.setFont(QFont("Segoe UI", 32, QFont.Weight.Black))
-        title.setStyleSheet(f"color: {C.WHITE}; letter-spacing: 1px;")
+        title.setFont(QFont("Segoe UI", 32, QFont.Weight.DemiBold))
+        title.setStyleSheet(f"color: {C.WHITE};")
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         lay.addWidget(title)
 
@@ -11831,13 +12117,13 @@ class SettingsHubPage(QWidget):
             card.setCursor(Qt.CursorShape.PointingHandCursor)
             card.setStyleSheet(
                 f"QFrame {{ "
-                f"  background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 rgba(16, 18, 26, 0.75), stop:1 rgba(8, 10, 15, 0.85)); "
+                f"  background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 rgba(10, 11, 16, 0.75), stop:1 rgba(10, 11, 16, 0.85)); "
                 f"  border: 1px solid rgba(0, 229, 255, 0.18); "
                 f"  border-radius: 18px; "
                 f"}} "
                 f"QFrame:hover {{ "
                 f"  border: 1.5px solid {C.PRI}; "
-                f"  background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 rgba(35, 28, 15, 0.8), stop:1 rgba(16, 12, 8, 0.9)); "
+                f"  background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 rgba(10, 11, 16, 0.8), stop:1 rgba(10, 11, 16, 0.9)); "
                 f"}}"
             )
             card_lay = QVBoxLayout(card)
@@ -11881,23 +12167,23 @@ class SystemConnectivityPage(QWidget):
                 background: transparent;
             }}
             QFrame#SettingsCard {{
-                background: rgba(10, 12, 18, 160);
+                background: rgba(10, 11, 16, 160);
                 border: 1.5px solid rgba(0, 229, 255, 0.15);
                 border-radius: 18px;
             }}
             QFrame#SettingsCard:hover {{
                 border: 1.5px solid rgba(0, 229, 255, 0.35);
-                background: rgba(20, 16, 12, 200);
+                background: rgba(10, 11, 16, 200);
             }}
             QLabel {{
                 background: transparent;
-                color: #e6edf3;
+                color: #e8ecf8;
             }}
             QPushButton {{
                 background: rgba(255, 255, 255, 0.03);
                 color: {C.WHITE};
                 border: 1px solid rgba(255, 255, 255, 0.08);
-                border-radius: 12px;
+                border-radius: 14px;
                 padding: 10px 12px;
             }}
             QPushButton:hover {{
@@ -11905,10 +12191,10 @@ class SystemConnectivityPage(QWidget):
                 border: 1px solid rgba(0, 229, 255, 0.45);
             }}
             QLineEdit, QComboBox {{
-                background: rgba(13, 15, 19, 240);
+                background: rgba(10, 11, 16, 240);
                 color: {C.WHITE};
                 border: 1px solid rgba(255, 255, 255, 0.08);
-                border-radius: 12px;
+                border-radius: 14px;
                 min-height: 34px;
                 padding: 0 10px;
             }}
@@ -11917,10 +12203,10 @@ class SystemConnectivityPage(QWidget):
                 background: rgba(0, 229, 255, 0.02);
             }}
             QMessageBox, QDialog {{
-                background-color: #0b0f19;
+                background-color: #11131a;
                 color: #ffffff;
                 border: 1.5px solid rgba(0, 229, 255, 0.35);
-                border-radius: 14px;
+                border-radius: 16px;
             }}
             QMessageBox QLabel, QDialog QLabel {{
                 color: #ffffff;
@@ -11931,11 +12217,11 @@ class SystemConnectivityPage(QWidget):
             }}
             QMessageBox QPushButton, QDialog QPushButton {{
                 background-color: #00e5ff;
-                color: #050a12;
+                color: #0a0b10;
                 font-weight: 700;
                 font-size: 12px;
                 border: none;
-                border-radius: 8px;
+                border-radius: 10px;
                 padding: 8px 24px;
                 min-width: 80px;
                 min-height: 30px;
@@ -11969,8 +12255,8 @@ class SystemConnectivityPage(QWidget):
         h_lay.setContentsMargins(0, 0, 0, 0)
         h_lay.setSpacing(6)
         title = QLabel("SYSTEM & CONNECTIVITY")
-        title.setFont(QFont("Segoe UI", 22, QFont.Weight.Black))
-        title.setStyleSheet(f"color: {C.WHITE}; letter-spacing: 1px;")
+        title.setFont(QFont("Segoe UI", 22, QFont.Weight.DemiBold))
+        title.setStyleSheet(f"color: {C.WHITE};")
         sub = QLabel("Manage your AI providers, connections and application preferences.")
         sub.setFont(QFont("Segoe UI", 10))
         sub.setStyleSheet(f"color: {C.TEXT_DIM};")
@@ -12024,7 +12310,7 @@ class SystemConnectivityPage(QWidget):
                 background: rgba(255,255,255,0.03);
                 color: {C.WHITE};
                 border: 1px solid rgba(255,255,255,0.08);
-                border-radius: 12px;
+                border-radius: 14px;
                 padding: 12px 14px;
             }}
             QPushButton:checked {{
@@ -12049,9 +12335,9 @@ class SystemConnectivityPage(QWidget):
     def _provider_row(self, name: str, key: str, model: str, setting_key: str):
         row = QFrame()
         if key:
-            row.setStyleSheet("QFrame { background: rgba(55, 255, 95, 0.02); border: 1px solid rgba(55, 255, 95, 0.1); border-radius: 14px; } QFrame:hover { background: rgba(55, 255, 95, 0.05); border: 1px solid rgba(55, 255, 95, 0.25); }")
+            row.setStyleSheet("QFrame { background: rgba(110, 193, 255, 0.02); border: 1px solid rgba(110, 193, 255, 0.1); border-radius: 16px; } QFrame:hover { background: rgba(110, 193, 255, 0.05); border: 1px solid rgba(110, 193, 255, 0.25); }")
         else:
-            row.setStyleSheet("QFrame { background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 14px; } QFrame:hover { background: rgba(0, 229, 255, 0.04); border: 1px solid rgba(0, 229, 255, 0.3); }")
+            row.setStyleSheet("QFrame { background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 16px; } QFrame:hover { background: rgba(0, 229, 255, 0.04); border: 1px solid rgba(0, 229, 255, 0.3); }")
         r = QHBoxLayout(row)
         r.setContentsMargins(14, 12, 14, 12)
         r.setSpacing(12)
@@ -12060,7 +12346,7 @@ class SystemConnectivityPage(QWidget):
         icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
         icon.setFont(QFont("Segoe UI", 13, QFont.Weight.Bold))
         if key:
-            icon.setStyleSheet(f"background: rgba(55, 255, 95, 0.12); color: {C.GREEN}; border: 1px solid rgba(55, 255, 95, 0.3); border-radius: 21px;")
+            icon.setStyleSheet(f"background: rgba(110, 193, 255, 0.12); color: {C.GREEN}; border: 1px solid rgba(110, 193, 255, 0.3); border-radius: 21px;")
         else:
             icon.setStyleSheet(f"background: rgba(0, 229, 255, 0.12); color: {C.WHITE}; border: 1px solid rgba(0, 229, 255, 0.38); border-radius: 21px;")
         r.addWidget(icon)
@@ -12094,7 +12380,7 @@ class SystemConnectivityPage(QWidget):
                     background: rgba(0, 229, 255, 0.1);
                     color: #00e5ff;
                     border: 1px solid rgba(0, 229, 255, 0.3);
-                    border-radius: 12px;
+                    border-radius: 14px;
                     padding: 10px 12px;
                     font-weight: bold;
                 }
@@ -12172,7 +12458,7 @@ class SystemConnectivityPage(QWidget):
                 color: #00e5ff;
                 border: 1px solid rgba(0, 229, 255, 0.45);
                 font-weight: bold;
-                border-radius: 12px;
+                border-radius: 14px;
                 padding: 10px 14px;
             }}
             QPushButton:hover {{
@@ -12445,7 +12731,7 @@ class SystemConnectivityPage(QWidget):
         is_online = local_brain.is_available()
         status_text = "🟢 Local Engine Online (Ollama)" if is_online else "🔴 Local Engine Offline"
         self._local_status_lbl = QLabel(status_text)
-        self._local_status_lbl.setStyleSheet("color: #00ffaa; font-weight: bold;" if is_online else "color: #ff5555; font-weight: bold;")
+        self._local_status_lbl.setStyleSheet("color: #6ec1ff; font-weight: bold;" if is_online else "color: #ff5a64; font-weight: bold;")
         status_row.addWidget(QLabel("Engine Status:"))
         status_row.addWidget(self._local_status_lbl, 1)
         local_lay.addLayout(status_row)
@@ -12475,7 +12761,7 @@ class SystemConnectivityPage(QWidget):
             self._local_model_combo.setCurrentText(saved_model)
             online = local_brain.is_available()
             self._local_status_lbl.setText("🟢 Local Engine Online (Ollama)" if online else "🔴 Local Engine Offline")
-            self._local_status_lbl.setStyleSheet("color: #00ffaa; font-weight: bold;" if online else "color: #ff5555; font-weight: bold;")
+            self._local_status_lbl.setStyleSheet("color: #6ec1ff; font-weight: bold;" if online else "color: #ff5a64; font-weight: bold;")
 
         _populate_models()
         self._local_model_combo.currentTextChanged.connect(lambda t: self._set_setting("local_ai_model", t))
@@ -12491,7 +12777,7 @@ class SystemConnectivityPage(QWidget):
         # 1-Click Model Download Helper Button
         action_row = QHBoxLayout()
         btn_pull = QPushButton("📥 Pull Qwen 2.5 (3B)")
-        btn_pull.setStyleSheet("background: rgba(0, 255, 170, 0.15); color: #00ffaa; border: 1px solid #00ffaa; border-radius: 4px; padding: 6px;")
+        btn_pull.setStyleSheet("background: rgba(0, 255, 170, 0.15); color: #6ec1ff; border: 1px solid #6ec1ff; border-radius: 4px; padding: 6px;")
         def _on_download_click():
             btn_pull.setText("⏳ Downloading model in background...")
             btn_pull.setEnabled(False)
@@ -12903,7 +13189,7 @@ class SystemConnectivityPage(QWidget):
             if is_browser_auth:
                 name_str = f" (@{username})" if username else ""
                 self._ig_status_lbl.setText(f"Status: 🟢 Connected via Browser / Session{name_str}")
-                self._ig_status_lbl.setStyleSheet("color: #00ffcc; font-size: 11px; font-weight: bold; margin-bottom: 4px;")
+                self._ig_status_lbl.setStyleSheet("color: #6ec1ff; font-size: 11px; font-weight: bold; margin-bottom: 4px;")
                 return
 
             has_session = False
@@ -12914,7 +13200,7 @@ class SystemConnectivityPage(QWidget):
 
             if username and has_session:
                 self._ig_status_lbl.setText(f"Status: 🟢 Connected (@{username})")
-                self._ig_status_lbl.setStyleSheet("color: #00ffcc; font-size: 11px; font-weight: bold; margin-bottom: 4px;")
+                self._ig_status_lbl.setStyleSheet("color: #6ec1ff; font-size: 11px; font-weight: bold; margin-bottom: 4px;")
                 return
 
             self._ig_status_lbl.setText("Status: ⚪ Not Connected — Click 'Connect via Browser' or 'Cookie'")
@@ -13384,7 +13670,7 @@ class SystemConnectivityPage(QWidget):
                 except Exception:
                     pass
                 self._gw_status_lbl.setText("Status: Credentials saved securely.")
-                self._gw_status_lbl.setStyleSheet("color: #4caf50;")
+                self._gw_status_lbl.setStyleSheet("color: #6ec1ff;")
                 QMessageBox.information(self, "Saved", "Google Workspace credentials saved successfully!")
             else:
                 QMessageBox.critical(self, "Error", "Failed to encrypt and save credentials.")
@@ -13408,11 +13694,11 @@ class SystemConnectivityPage(QWidget):
         from PyQt6.QtWidgets import QMessageBox
         if res.get("success"):
             self._gw_status_lbl.setText(f"Status: {res.get('message')}")
-            self._gw_status_lbl.setStyleSheet("color: #4caf50;")
+            self._gw_status_lbl.setStyleSheet("color: #6ec1ff;")
             QMessageBox.information(self, "Connection Successful", res.get("message"))
         else:
             self._gw_status_lbl.setText(f"Status: {res.get('message')}")
-            self._gw_status_lbl.setStyleSheet("color: #f44336;")
+            self._gw_status_lbl.setStyleSheet("color: #ff5a64;")
             QMessageBox.warning(self, "Connection Failed", res.get("message"))
 
     def _handle_gw_oauth(self):
@@ -13423,7 +13709,7 @@ class SystemConnectivityPage(QWidget):
                 import shutil
                 shutil.copy2(path, Path("config/google_workspace_credentials.json"))
                 self._gw_status_lbl.setText("Status: OAuth credentials.json loaded.")
-                self._gw_status_lbl.setStyleSheet("color: #4caf50;")
+                self._gw_status_lbl.setStyleSheet("color: #6ec1ff;")
                 QMessageBox.information(self, "Success", "Google Cloud OAuth credentials loaded successfully!")
             except Exception as e:
                 QMessageBox.critical(self, "Error", f"Failed to load credentials: {e}")
@@ -13474,7 +13760,7 @@ class SystemConnectivityPage(QWidget):
             has_token = bool(cfg.get("refreshToken"))
             if has_id and has_sec and has_token:
                 self._spotify_status_lbl.setText("Status: 🟢 Connected & Authorized (Ready)")
-                self._spotify_status_lbl.setStyleSheet("color: #00ffcc; font-size: 11px; font-weight: bold; margin-bottom: 4px;")
+                self._spotify_status_lbl.setStyleSheet("color: #6ec1ff; font-size: 11px; font-weight: bold; margin-bottom: 4px;")
             elif has_id and has_sec:
                 self._spotify_status_lbl.setText("Status: 🟡 Credentials Saved — Click 'Authenticate in Browser'")
                 self._spotify_status_lbl.setStyleSheet(f"color: {C.ACC}; font-size: 11px; font-weight: bold; margin-bottom: 4px;")
@@ -13818,7 +14104,7 @@ class SystemConnectivityPage(QWidget):
         box = self._card("System Status", "")
         lay = box.layout()
         self._sys_online = QLabel("≡ƒƒó System Online")
-        self._sys_online.setStyleSheet("color: #35ff75; font-weight: 700;")
+        self._sys_online.setStyleSheet("color: #6ec1ff; font-weight: 700;")
         self._sys_note = QLabel("All systems are operational.")
         self._sys_note.setStyleSheet(f"color: {C.TEXT_MED};")
         lay.addWidget(self._sys_online)
@@ -13855,12 +14141,12 @@ class SystemConnectivityPage(QWidget):
 
     def _build_security_tip(self):
         box = QFrame()
-        box.setStyleSheet("QFrame { background: rgba(24, 18, 8, 0.85); border: 1px solid rgba(255, 191, 0, 0.22); border-radius: 14px; }")
+        box.setStyleSheet("QFrame { background: rgba(10, 11, 16, 0.85); border: 1px solid rgba(255, 191, 0, 0.22); border-radius: 16px; }")
         lay = QVBoxLayout(box)
         lay.setContentsMargins(16, 14, 16, 14)
         lay.setSpacing(8)
         title = QLabel("Security Tip")
-        title.setStyleSheet("color: #ffbf00; font-weight: 700;")
+        title.setStyleSheet("color: #ff8a6b; font-weight: 700;")
         body = QLabel('"Never share your API keys with anyone."')
         body.setWordWrap(True)
         body.setStyleSheet(f"color: {C.TEXT_MED};")
@@ -14391,7 +14677,7 @@ class SmartDevicesSection(QFrame):
         title_box.setSpacing(1)
         self._title_lbl = QLabel("SMART DEVICES")
         self._title_lbl.setFont(QFont("Segoe UI", 12, QFont.Weight.Bold))
-        self._title_lbl.setStyleSheet(f"color: {C.WHITE}; letter-spacing: 1px;")
+        self._title_lbl.setStyleSheet(f"color: {C.WHITE};")
         self._subtitle_lbl = QLabel("Quick access to your connected home devices.")
         self._subtitle_lbl.setFont(QFont("Segoe UI", 8))
         self._subtitle_lbl.setStyleSheet(f"color: {C.TEXT_DIM};")
@@ -14402,7 +14688,7 @@ class SmartDevicesSection(QFrame):
         self._count_chip = QLabel("0 devices")
         self._count_chip.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._count_chip.setStyleSheet(
-            f"QLabel {{ background: rgba(255,255,255,0.03); color: {C.PRI}; border: 1px solid rgba(255,255,255,0.07); border-radius: 10px; padding: 4px 10px; }}"
+            f"QLabel {{ background: rgba(255,255,255,0.03); color: {C.PRI}; border: 1px solid rgba(255,255,255,0.07); border-radius: 12px; padding: 4px 10px; }}"
         )
         header.addWidget(self._count_chip)
 
@@ -14465,7 +14751,7 @@ class SmartDevicesSection(QFrame):
                 background: rgba(0, 229, 255,0.12);
                 color: {C.WHITE};
                 border: 1px solid {C.PRI};
-                border-radius: 10px;
+                border-radius: 12px;
                 min-height: 34px;
             }}
             QPushButton:hover {{
@@ -14511,7 +14797,7 @@ class SmartDevicesSection(QFrame):
         self._panel.setObjectName("SmartDevicePanel")
         self._panel.setStyleSheet(f"""
             QFrame#SmartDevicePanel {{
-                background: rgba(8, 9, 13, 245);
+                background: rgba(10, 11, 16, 245);
                 border: 1px solid rgba(255,255,255,0.08);
                 border-radius: 18px;
             }}
@@ -14522,7 +14808,7 @@ class SmartDevicesSection(QFrame):
                 background: rgba(255,255,255,0.03);
                 color: {C.WHITE};
                 border: 1px solid rgba(255,255,255,0.08);
-                border-radius: 10px;
+                border-radius: 12px;
                 padding: 0 10px;
             }}
             QPushButton:hover {{
@@ -14881,7 +15167,7 @@ class _ConnectDeviceCard(QFrame):
         self.setMinimumSize(220, 150)
         self.setStyleSheet("""
             QFrame#ConnectDeviceCard {
-                background: rgba(10, 12, 18, 240);
+                background: rgba(10, 11, 16, 240);
                 border: 1px solid rgba(255,255,255,0.08);
                 border-radius: 18px;
             }
@@ -14892,7 +15178,7 @@ class _ConnectDeviceCard(QFrame):
                 background: rgba(255,255,255,0.06);
                 color: #ffffff;
                 border: 1px solid rgba(255,255,255,0.08);
-                border-radius: 10px;
+                border-radius: 12px;
                 min-height: 30px;
                 padding: 0 10px;
             }
@@ -14935,7 +15221,7 @@ class _ConnectDeviceCard(QFrame):
 
         self._action_container = QFrame(self)
         self._action_container.setVisible(False)
-        self._action_container.setStyleSheet("QFrame { background: rgba(255,255,255,0.03); border-radius: 14px; }")
+        self._action_container.setStyleSheet("QFrame { background: rgba(255,255,255,0.03); border-radius: 16px; }")
         actions_layout = QHBoxLayout(self._action_container)
         actions_layout.setContentsMargins(8, 8, 8, 8)
         actions_layout.setSpacing(8)
@@ -14973,7 +15259,7 @@ class _ConnectDeviceCard(QFrame):
                     background: rgba(255,255,255,0.08);
                     color: #ffffff;
                     border: 1px solid rgba(255,255,255,0.12);
-                    border-radius: 10px;
+                    border-radius: 12px;
                     min-height: 30px;
                     padding: 0 10px;
                 }
@@ -14985,7 +15271,7 @@ class _ConnectDeviceCard(QFrame):
         else:
             self.setStyleSheet("""
                 QFrame#ConnectDeviceCard {
-                    background: rgba(10, 12, 18, 240);
+                    background: rgba(10, 11, 16, 240);
                     border: 1px solid rgba(255,255,255,0.08);
                     border-radius: 18px;
                 }
@@ -14996,7 +15282,7 @@ class _ConnectDeviceCard(QFrame):
                     background: rgba(255,255,255,0.06);
                     color: #ffffff;
                     border: 1px solid rgba(255,255,255,0.08);
-                    border-radius: 10px;
+                    border-radius: 12px;
                     min-height: 30px;
                     padding: 0 10px;
                 }
@@ -15043,8 +15329,8 @@ class JarvisConnectDevicesPage(QFrame):
         title_box = QVBoxLayout()
         title_box.setSpacing(2)
         self._title = QLabel("DEVICES")
-        self._title.setFont(QFont("Segoe UI", 18, QFont.Weight.Black))
-        self._title.setStyleSheet("color: #ffffff; letter-spacing: 2px;")
+        self._title.setFont(QFont("Segoe UI", 18, QFont.Weight.DemiBold))
+        self._title.setStyleSheet("color: #ffffff;")
         self._subtitle = QLabel("Everything connected to Jarvis.")
         self._subtitle.setFont(QFont("Segoe UI", 9))
         self._subtitle.setStyleSheet("color: rgba(255,255,255,0.62);")
@@ -15058,7 +15344,7 @@ class JarvisConnectDevicesPage(QFrame):
         top_row.setSpacing(8)
         self._gateway_pill = QLabel("ΓùÅ Gateway Online")
         self._gateway_pill.setFont(QFont("Segoe UI", 9, QFont.Weight.Bold))
-        self._gateway_pill.setStyleSheet("color: #35ff75; background: rgba(53,255,117,0.06); border: 1px solid rgba(53,255,117,0.16); border-radius: 12px; padding: 5px 10px;")
+        self._gateway_pill.setStyleSheet("color: #6ec1ff; background: rgba(53,255,117,0.06); border: 1px solid rgba(53,255,117,0.16); border-radius: 14px; padding: 5px 10px;")
         top_row.addWidget(self._gateway_pill)
         top_row.addStretch(1)
         self._add_btn = QPushButton("+ Add Device")
@@ -15070,7 +15356,7 @@ class JarvisConnectDevicesPage(QFrame):
                 background: rgba(0, 229, 255, 0.10);
                 color: #ffffff;
                 border: 1px solid rgba(0, 229, 255, 0.25);
-                border-radius: 12px;
+                border-radius: 14px;
                 padding: 0 14px;
             }
             QPushButton:hover {
@@ -15102,7 +15388,7 @@ class JarvisConnectDevicesPage(QFrame):
         
         self._my_devices_lbl = QLabel("MY DEVICES")
         self._my_devices_lbl.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
-        self._my_devices_lbl.setStyleSheet("color: #ffffff; letter-spacing: 1px;")
+        self._my_devices_lbl.setStyleSheet("color: #ffffff;")
         ov_lay.addWidget(self._my_devices_lbl)
         
         self._overview_stack = QStackedWidget()
@@ -15181,7 +15467,7 @@ class JarvisConnectDevicesPage(QFrame):
         self._detail_icon.setFixedSize(48, 48)
         self._detail_icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._detail_icon.setFont(QFont("Segoe UI", 20, QFont.Weight.Bold))
-        self._detail_icon.setStyleSheet("background: rgba(0, 229, 255, 0.10); color: #00e5ff; border: 1px solid rgba(0, 229, 255,0.22); border-radius: 12px;")
+        self._detail_icon.setStyleSheet("background: rgba(0, 229, 255, 0.10); color: #00e5ff; border: 1px solid rgba(0, 229, 255,0.22); border-radius: 14px;")
         self._detail_header.addWidget(self._detail_icon)
         
         det_titles = QVBoxLayout()
@@ -15212,12 +15498,12 @@ class JarvisConnectDevicesPage(QFrame):
         
         # Controls
         self._action_box = QFrame()
-        self._action_box.setStyleSheet("QFrame { background: rgba(10, 12, 18, 220); border: 1px solid rgba(255,255,255,0.06); border-radius: 16px; }")
+        self._action_box.setStyleSheet("QFrame { background: rgba(10, 11, 16, 220); border: 1px solid rgba(255,255,255,0.06); border-radius: 18px; }")
         action_lay = QVBoxLayout(self._action_box)
         action_lay.setContentsMargins(16, 16, 16, 16)
         action_title = QLabel("CONTROLS")
         action_title.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
-        action_title.setStyleSheet("color: #ffffff; letter-spacing: 1px;")
+        action_title.setStyleSheet("color: #ffffff;")
         action_lay.addWidget(action_title)
         self._action_buttons = QGridLayout()
         self._action_buttons.setSpacing(8)
@@ -15226,19 +15512,19 @@ class JarvisConnectDevicesPage(QFrame):
         
         # Manage
         manage_box = QFrame()
-        manage_box.setStyleSheet("QFrame { background: rgba(10, 12, 18, 220); border: 1px solid rgba(255,255,255,0.06); border-radius: 16px; }")
+        manage_box.setStyleSheet("QFrame { background: rgba(10, 11, 16, 220); border: 1px solid rgba(255,255,255,0.06); border-radius: 18px; }")
         manage_lay = QVBoxLayout(manage_box)
         manage_lay.setContentsMargins(16, 16, 16, 16)
         manage_title = QLabel("MANAGE")
         manage_title.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
-        manage_title.setStyleSheet("color: #ffffff; letter-spacing: 1px;")
+        manage_title.setStyleSheet("color: #ffffff;")
         manage_lay.addWidget(manage_title)
         
         self._btn_rename = QPushButton("Rename Device")
         self._btn_disconnect = QPushButton("Disconnect")
         self._btn_reconnect = QPushButton("Reconnect")
         self._btn_forget = QPushButton("Forget Device")
-        self._btn_forget.setStyleSheet("QPushButton { color: #ff5555; } QPushButton:hover { background: rgba(255, 85, 85, 0.1); border-color: #ff5555; }")
+        self._btn_forget.setStyleSheet("QPushButton { color: #ff5a64; } QPushButton:hover { background: rgba(255, 85, 85, 0.1); border-color: #ff5a64; }")
         
         manage_grid = QGridLayout()
         manage_grid.setSpacing(8)
@@ -15247,12 +15533,12 @@ class JarvisConnectDevicesPage(QFrame):
             b.setMinimumHeight(34)
             if b != self._btn_forget:
                 b.setStyleSheet("""
-                    QPushButton { background: rgba(255,255,255,0.03); color: #ffffff; border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; }
+                    QPushButton { background: rgba(255,255,255,0.03); color: #ffffff; border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; }
                     QPushButton:hover { background: rgba(0, 229, 255,0.08); border: 1px solid rgba(0, 229, 255,0.22); color: #00e5ff; }
                 """)
             else:
                 b.setStyleSheet("""
-                    QPushButton { background: rgba(255,255,255,0.03); color: #ff5555; border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; }
+                    QPushButton { background: rgba(255,255,255,0.03); color: #ff5a64; border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; }
                     QPushButton:hover { background: rgba(255,85,85,0.1); border: 1px solid rgba(255,85,85,0.3); }
                 """)
             manage_grid.addWidget(b, i // 2, i % 2)
@@ -15293,7 +15579,7 @@ class JarvisConnectDevicesPage(QFrame):
         w0_title = QLabel("SELECT DEVICE TYPE")
         w0_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         w0_title.setFont(QFont("Segoe UI", 12, QFont.Weight.Bold))
-        w0_title.setStyleSheet("color: #ffffff; letter-spacing: 2px;")
+        w0_title.setStyleSheet("color: #ffffff;")
         w0_lay.addWidget(w0_title)
         w0_lay.addSpacing(20)
         
@@ -15304,7 +15590,7 @@ class JarvisConnectDevicesPage(QFrame):
         self._cs_android_btn.setFixedSize(140, 80)
         self._cs_android_btn.setFont(QFont("Segoe UI", 11, QFont.Weight.Bold))
         self._cs_android_btn.setStyleSheet("""
-            QPushButton { background: rgba(10, 12, 18, 220); color: rgba(255,255,255,0.9); border: 1px solid rgba(255,255,255,0.12); border-radius: 12px; }
+            QPushButton { background: rgba(10, 11, 16, 220); color: rgba(255,255,255,0.9); border: 1px solid rgba(255,255,255,0.12); border-radius: 14px; }
             QPushButton:hover { color: #00e5ff; border: 1px solid rgba(0, 229, 255,0.6); background: rgba(0, 229, 255,0.1); }
         """)
         self._cs_android_btn.clicked.connect(self._cinema_select_android)
@@ -15314,7 +15600,7 @@ class JarvisConnectDevicesPage(QFrame):
         self._cs_pc_btn.setFixedSize(140, 80)
         self._cs_pc_btn.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
         self._cs_pc_btn.setEnabled(False)
-        self._cs_pc_btn.setStyleSheet("QPushButton { background: rgba(10, 12, 18, 120); color: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; }")
+        self._cs_pc_btn.setStyleSheet("QPushButton { background: rgba(10, 11, 16, 120); color: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.06); border-radius: 14px; }")
         w0_row.addWidget(self._cs_pc_btn)
         w0_row.addStretch(1)
         w0_lay.addLayout(w0_row)
@@ -15328,7 +15614,7 @@ class JarvisConnectDevicesPage(QFrame):
         w1_title = QLabel("SCAN TO CONNECT")
         w1_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         w1_title.setFont(QFont("Segoe UI", 12, QFont.Weight.Bold))
-        w1_title.setStyleSheet("color: #ffffff; letter-spacing: 2px;")
+        w1_title.setStyleSheet("color: #ffffff;")
         w1_lay.addWidget(w1_title)
         w1_lay.addSpacing(16)
         
@@ -15337,7 +15623,7 @@ class JarvisConnectDevicesPage(QFrame):
         self._onb_qr_label = QLabel()
         self._onb_qr_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._onb_qr_label.setFixedSize(200, 200)
-        self._onb_qr_label.setStyleSheet("background: #ffffff; border-radius: 6px; padding: 4px;")
+        self._onb_qr_label.setStyleSheet("background: #ffffff; border-radius: 8px; padding: 4px;")
         w1_qr_row.addWidget(self._onb_qr_label)
         w1_qr_row.addStretch(1)
         w1_lay.addLayout(w1_qr_row)
@@ -15345,14 +15631,14 @@ class JarvisConnectDevicesPage(QFrame):
         w1_lay.addSpacing(16)
         self._onb_code_lbl = QLabel("------")
         self._onb_code_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self._onb_code_lbl.setFont(QFont("Consolas", 18, QFont.Weight.Black))
-        self._onb_code_lbl.setStyleSheet("color: #00e5ff; letter-spacing: 6px;")
+        self._onb_code_lbl.setFont(QFont("Consolas", 18, QFont.Weight.DemiBold))
+        self._onb_code_lbl.setStyleSheet("color: #00e5ff;")
         w1_lay.addWidget(self._onb_code_lbl)
         
-        self._onb_status_lbl = QLabel("WAITING FOR CONNECTION")
+        self._onb_status_lbl = QLabel("Waiting for your phone…")
         self._onb_status_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._onb_status_lbl.setFont(QFont("Segoe UI", 8, QFont.Weight.Bold))
-        self._onb_status_lbl.setStyleSheet("color: rgba(255,255,255,0.5); letter-spacing: 1px;")
+        self._onb_status_lbl.setStyleSheet("color: rgba(255,255,255,0.5);")
         w1_lay.addWidget(self._onb_status_lbl)
         
         w1_ctrl = QHBoxLayout()
@@ -15361,7 +15647,7 @@ class JarvisConnectDevicesPage(QFrame):
         w1_ref.setCursor(Qt.CursorShape.PointingHandCursor)
         w1_ref.setFixedSize(120, 32)
         w1_ref.setStyleSheet("""
-            QPushButton { background: rgba(255,255,255,0.05); color: #ffffff; border: 1px solid rgba(255,255,255,0.1); border-radius: 16px; }
+            QPushButton { background: rgba(255,255,255,0.05); color: #ffffff; border: 1px solid rgba(255,255,255,0.1); border-radius: 18px; }
             QPushButton:hover { background: rgba(255,255,255,0.1); }
         """)
         w1_ref.clicked.connect(self._refresh_onboarding_offer)
@@ -15377,8 +15663,8 @@ class JarvisConnectDevicesPage(QFrame):
         w2_lay.addStretch(1)
         self._onb_success_title = QLabel("DEVICE CONNECTED")
         self._onb_success_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self._onb_success_title.setFont(QFont("Segoe UI", 16, QFont.Weight.Black))
-        self._onb_success_title.setStyleSheet("color: #35ff75; letter-spacing: 2px;")
+        self._onb_success_title.setFont(QFont("Segoe UI", 16, QFont.Weight.DemiBold))
+        self._onb_success_title.setStyleSheet("color: #6ec1ff;")
         w2_lay.addWidget(self._onb_success_title)
         self._onb_success_name = QLabel("")
         self._onb_success_name.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -15420,7 +15706,7 @@ class JarvisConnectDevicesPage(QFrame):
         if service is None:
             self._onboarding_offer = {}
             self._onb_code_lbl.setText("------")
-            self._onb_status_lbl.setText("GATEWAY UNAVAILABLE")
+            self._onb_status_lbl.setText("Gateway unavailable")
             return
         try:
             import io
@@ -15429,7 +15715,7 @@ class JarvisConnectDevicesPage(QFrame):
             self._onboarding_offer = dict(service.create_pairing_offer(device_name="Jarvis Connect", platform="gateway"))
             code = str(self._onboarding_offer.get("pairing_code") or "------")
             self._onb_code_lbl.setText(code)
-            self._onb_status_lbl.setText("WAITING FOR CONNECTION")
+            self._onb_status_lbl.setText("Waiting for your phone…")
             
             payload = self._onboarding_offer
             text = json.dumps(payload, sort_keys=True, ensure_ascii=False)
@@ -15466,7 +15752,7 @@ class JarvisConnectDevicesPage(QFrame):
         try:
             remaining = max(0, int(expires))
             if remaining <= 0 and self._onboarding_offer:
-                self._onb_status_lbl.setText("CODE EXPIRED. REFRESH TO CONTINUE.")
+                self._onb_status_lbl.setText("Code expired. Refresh to continue.")
         except Exception:
             pass
             
@@ -15662,10 +15948,10 @@ class JarvisUI:
         self._app.setStyle("Fusion")
         self._app.setStyleSheet("""
             QMessageBox, QDialog, QInputDialog {
-                background-color: #0b0f19;
+                background-color: #11131a;
                 color: #ffffff;
                 border: 1.5px solid rgba(0, 229, 255, 0.35);
-                border-radius: 14px;
+                border-radius: 16px;
             }
             QMessageBox QLabel, QDialog QLabel, QInputDialog QLabel {
                 color: #ffffff;
@@ -15676,12 +15962,12 @@ class JarvisUI:
             }
             QMessageBox QPushButton, QDialog QPushButton, QInputDialog QPushButton {
                 background-color: #00e5ff;
-                color: #050a12;
+                color: #0a0b10;
                 font-family: 'Segoe UI', -apple-system, sans-serif;
                 font-weight: 700;
                 font-size: 12px;
                 border: none;
-                border-radius: 8px;
+                border-radius: 10px;
                 padding: 8px 24px;
                 min-width: 80px;
                 min-height: 30px;
@@ -16052,15 +16338,15 @@ class JarvisUI:
         menu = QMenu()
         menu.setStyleSheet(f"""
             QMenu {{
-                background: rgba(8, 8, 8, 245);
+                background: rgba(10, 11, 16, 245);
                 color: {C.WHITE};
                 border: 1px solid {C.BORDER_B};
-                border-radius: 10px;
+                border-radius: 12px;
                 padding: 6px;
             }}
             QMenu::item {{
                 padding: 8px 18px;
-                border-radius: 6px;
+                border-radius: 8px;
             }}
             QMenu::item:selected {{
                 background: rgba(255,255,255,0.08);
@@ -16317,6 +16603,36 @@ class JarvisUI:
     @on_text_command.setter
     def on_text_command(self, cb):
         self._win.on_text_command = cb
+
+    @property
+    def on_voice_volume(self):
+        return self._win.on_voice_volume
+
+    @on_voice_volume.setter
+    def on_voice_volume(self, cb):
+        self._win.on_voice_volume = cb
+
+    @property
+    def on_voice_pause(self):
+        return self._win.on_voice_pause
+
+    @on_voice_pause.setter
+    def on_voice_pause(self, cb):
+        self._win.on_voice_pause = cb
+
+    @property
+    def on_voice_stop(self):
+        return self._win.on_voice_stop
+
+    @on_voice_stop.setter
+    def on_voice_stop(self, cb):
+        self._win.on_voice_stop = cb
+
+    def set_voice_paused(self, paused: bool):
+        try:
+            self._win._pulse_ball.set_paused(bool(paused))
+        except Exception:
+            pass
 
     @property
     def on_remote_clicked(self):

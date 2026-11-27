@@ -29,16 +29,16 @@ from PyQt6.QtWidgets import (
 from smart_home import SmartHomeService
 
 
-BG = "#020305"
-PANEL = "#07080b"
-PANEL_2 = "#0d0f14"
+BG = "#0a0b10"
+PANEL = "#11131a"
+PANEL_2 = "#181b25"
 ACCENT = "#00e5ff"
 ACCENT_SOFT = "rgba(0, 229, 255, 0.12)"
 ACCENT_LINE = "rgba(0, 229, 255, 0.22)"
 TEXT = "#ffffff"
 TEXT_MED = "rgba(255,255,255,0.85)"
 TEXT_DIM = "rgba(255,255,255,0.65)"
-GREEN = "#37ff5f"
+GREEN = "#6ec1ff"
 
 
 @dataclass(frozen=True)
@@ -62,7 +62,7 @@ def _panel_style(border_alpha: int = 34) -> str:
     alpha = border_alpha / 255.0
     return (
         "QFrame { "
-        "background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 rgba(16, 18, 26, 0.75), stop:1 rgba(8, 10, 15, 0.88)); "
+        "background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 rgba(10, 11, 16, 0.75), stop:1 rgba(10, 11, 16, 0.88)); "
         f"border: 1.5px solid rgba(0, 229, 255, {alpha:.3f}); "
         "border-radius: 18px; "
         "}"
@@ -72,7 +72,7 @@ def _panel_style(border_alpha: int = 34) -> str:
 def _soft_button_style() -> str:
     return (
         f"QPushButton {{ background: rgba(255,255,255,0.03); color: {TEXT}; "
-        "border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 0 12px; }}"
+        "border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 0 12px; }}"
         f"QPushButton:hover {{ border: 1px solid {ACCENT}; background: rgba(0, 229, 255,0.08); }}"
     )
 
@@ -100,7 +100,7 @@ class AddDeviceDialog(QDialog):
                 background: rgba(255,255,255,0.04);
                 color: {TEXT};
                 border: 1px solid rgba(255,255,255,0.08);
-                border-radius: 10px;
+                border-radius: 12px;
                 min-height: 34px;
                 padding: 0 10px;
             }}
@@ -114,7 +114,7 @@ class AddDeviceDialog(QDialog):
 
         title = QLabel("ADD DEVICE")
         title.setFont(QFont("Segoe UI", 18, QFont.Weight.Black))
-        title.setStyleSheet(f"color: {TEXT}; letter-spacing: 2px;")
+        title.setStyleSheet(f"color: {TEXT};")
         sub = QLabel("Choose a platform, authenticate, scan, and save your devices locally.")
         sub.setStyleSheet(f"color: {TEXT_DIM};")
         root.addWidget(title)
@@ -200,14 +200,14 @@ class AddDeviceDialog(QDialog):
             badge.setFont(QFont("Segoe UI", 13))
             
             badge_style = {
-                "atomberg": "background: rgba(53, 255, 117, 0.08); color: #35ff75; border: 1px solid rgba(53, 255, 117, 0.2); border-radius: 18px;",
+                "atomberg": "background: rgba(53, 255, 117, 0.08); color: #6ec1ff; border: 1px solid rgba(53, 255, 117, 0.2); border-radius: 18px;",
                 "kasa": "background: rgba(0, 180, 216, 0.08); color: #00b4d8; border: 1px solid rgba(0, 180, 216, 0.2); border-radius: 18px;",
-                "hue": "background: rgba(255, 165, 0, 0.08); color: #ffa500; border: 1px solid rgba(255, 165, 0, 0.2); border-radius: 18px;",
-                "lg": "background: rgba(165, 0, 165, 0.08); color: #a500a5; border: 1px solid rgba(165, 0, 165, 0.2); border-radius: 18px;",
+                "hue": "background: rgba(255, 165, 0, 0.08); color: #ff8a6b; border: 1px solid rgba(255, 165, 0, 0.2); border-radius: 18px;",
+                "lg": "background: rgba(165, 0, 165, 0.08); color: #8f8cff; border: 1px solid rgba(165, 0, 165, 0.2); border-radius: 18px;",
                 "daikin": "background: rgba(123, 211, 247, 0.08); color: #7bd3f7; border: 1px solid rgba(123, 211, 247, 0.2); border-radius: 18px;",
-                "tuya": "background: rgba(255, 90, 95, 0.08); color: #ff5a5f; border: 1px solid rgba(255, 90, 95, 0.2); border-radius: 18px;",
+                "tuya": "background: rgba(255, 90, 95, 0.08); color: #ff5a64; border: 1px solid rgba(255, 90, 95, 0.2); border-radius: 18px;",
                 "nest": "background: rgba(255, 255, 255, 0.05); color: #ffffff; border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 18px;",
-                "smartthings": "background: rgba(0, 100, 255, 0.08); color: #0064ff; border: 1px solid rgba(0, 100, 255, 0.2); border-radius: 18px;",
+                "smartthings": "background: rgba(0, 100, 255, 0.08); color: #5b8cff; border: 1px solid rgba(0, 100, 255, 0.2); border-radius: 18px;",
             }.get(platform.key, "background: rgba(255, 255, 255, 0.05); color: #ffffff; border-radius: 18px;")
             badge.setStyleSheet(badge_style)
             lay_c.addWidget(badge)
@@ -242,7 +242,7 @@ class AddDeviceDialog(QDialog):
                 QFrame {
                     background: rgba(255, 255, 255, 0.02);
                     border: 1px solid rgba(255, 255, 255, 0.06);
-                    border-radius: 14px;
+                    border-radius: 16px;
                 }
                 QFrame:hover {
                     background: rgba(0, 229, 255, 0.04);
@@ -341,7 +341,7 @@ class AddDeviceDialog(QDialog):
                     QFrame {{
                         background: rgba(0, 229, 255, 0.08);
                         border: 1.5px solid {ACCENT};
-                        border-radius: 14px;
+                        border-radius: 16px;
                     }}
                 """)
             else:
@@ -349,7 +349,7 @@ class AddDeviceDialog(QDialog):
                     QFrame {
                         background: rgba(255, 255, 255, 0.02);
                         border: 1px solid rgba(255, 255, 255, 0.06);
-                        border-radius: 14px;
+                        border-radius: 16px;
                     }
                     QFrame:hover {
                         background: rgba(0, 229, 255, 0.04);
@@ -656,7 +656,7 @@ class _DeviceTile(ClickableFrame):
         if active:
             self.setStyleSheet(f"""
                 QFrame#DeviceTileFrame {{
-                    background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #12141d, stop:1 #08090e);
+                    background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #11131a, stop:1 #0a0b10);
                     border: 1.5px solid {ACCENT};
                     border-radius: 18px;
                 }}
@@ -664,19 +664,19 @@ class _DeviceTile(ClickableFrame):
         else:
             self.setStyleSheet(f"""
                 QFrame#DeviceTileFrame {{
-                    background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #0f111a, stop:1 #07080b);
+                    background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #11131a, stop:1 #11131a);
                     border: 1px solid rgba(255, 255, 255, 0.06);
                     border-radius: 18px;
                 }}
                 QFrame#DeviceTileFrame:hover {{
-                    background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #141726, stop:1 #0a0b12);
+                    background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #181b25, stop:1 #0a0b10);
                     border: 1px solid rgba(0, 229, 255, 0.35);
                 }}
             """)
             
         is_on = bool(self.device.get("is_on"))
         if is_on:
-            self.power_btn.setStyleSheet("QPushButton { color: #37ff5f; background: rgba(55, 255, 95, 0.08); border: 1px solid rgba(55, 255, 95, 0.25); border-radius: 13px; } QPushButton:hover { background: rgba(55, 255, 95, 0.15); }")
+            self.power_btn.setStyleSheet("QPushButton { color: #6ec1ff; background: rgba(110, 193, 255, 0.08); border: 1px solid rgba(110, 193, 255, 0.25); border-radius: 13px; } QPushButton:hover { background: rgba(110, 193, 255, 0.15); }")
         else:
             self.power_btn.setStyleSheet("QPushButton { color: rgba(255, 255, 255, 0.4); background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 13px; } QPushButton:hover { border: 1px solid rgba(255, 255, 255, 0.15); background: rgba(255, 255, 255, 0.06); }")
 
@@ -739,9 +739,9 @@ class JarvisHomePage(QWidget):
         self._right_container.setObjectName("ActivityPanel")
         self._right_container.setStyleSheet(f"""
             QFrame#ActivityPanel {{
-                background: rgba(10, 10, 10, 0.4);
+                background: rgba(10, 11, 16, 0.4);
                 border: 1px solid rgba(0, 229, 255, 0.4);
-                border-radius: 16px;
+                border-radius: 18px;
             }}
             QFrame#ActivityPanel:hover {{
                 border: 1px solid rgba(0, 229, 255, 0.9);
@@ -754,7 +754,7 @@ class JarvisHomePage(QWidget):
         
         act_title = QLabel("RECENT ACTIVITY")
         act_title.setFont(QFont("Segoe UI", 11, QFont.Weight.Bold))
-        act_title.setStyleSheet(f"color: {TEXT}; letter-spacing: 1px;")
+        act_title.setStyleSheet(f"color: {TEXT};")
         self._right_lay.addWidget(act_title)
         
         act_scroll = QScrollArea()
@@ -775,7 +775,7 @@ class JarvisHomePage(QWidget):
         # Link button: View All Activity
         self._view_all_act_btn = QPushButton("View All Activity  >")
         self._view_all_act_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self._view_all_act_btn.setStyleSheet(f"QPushButton {{ background: transparent; color: {ACCENT}; border: none; font-size: 11px; font-weight: bold; text-align: left; padding-left: 4px; }} QPushButton:hover {{ color: #ff6b6b; }}")
+        self._view_all_act_btn.setStyleSheet(f"QPushButton {{ background: transparent; color: {ACCENT}; border: none; font-size: 11px; font-weight: bold; text-align: left; padding-left: 4px; }} QPushButton:hover {{ color: #ff5a64; }}")
         self._right_lay.addWidget(self._view_all_act_btn)
         
         self._body_layout.addWidget(self._right_container, 1)
@@ -801,7 +801,7 @@ class JarvisHomePage(QWidget):
         lay.setSpacing(10)
         head = QLabel(title)
         head.setFont(QFont("Segoe UI", 12, QFont.Weight.Bold))
-        head.setStyleSheet(f"color: {TEXT}; letter-spacing: 1px;")
+        head.setStyleSheet(f"color: {TEXT};")
         lay.addWidget(head)
         line = QFrame()
         line.setFixedHeight(1)
@@ -815,7 +815,7 @@ class JarvisHomePage(QWidget):
         text = QVBoxLayout()
         title = QLabel("JARVIS HOME")
         title.setFont(QFont("Segoe UI", 24, QFont.Weight.Black))
-        title.setStyleSheet(f"color: {TEXT}; letter-spacing: 1px;")
+        title.setStyleSheet(f"color: {TEXT};")
         subtitle = QLabel("Control your smart home with Jarvis.")
         subtitle.setFont(QFont("Segoe UI", 11))
         subtitle.setStyleSheet(f"color: {TEXT_DIM};")
@@ -824,12 +824,12 @@ class JarvisHomePage(QWidget):
         row.addLayout(text, 1)
         self._status_chip = QLabel()
         self._status_chip.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self._status_chip.setStyleSheet(f"QLabel {{ background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; padding: 6px 14px; min-width: 110px; }}")
+        self._status_chip.setStyleSheet(f"QLabel {{ background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255,255,255,0.06); border-radius: 14px; padding: 6px 14px; min-width: 110px; }}")
         row.addWidget(self._status_chip)
         self._voice_button = QPushButton("▮▮")
         self._voice_button.setFixedSize(48, 48)
         self._voice_button.setCursor(Qt.CursorShape.PointingHandCursor)
-        self._voice_button.setStyleSheet(f"QPushButton {{ background: rgba(255, 255, 255, 0.02); color: {TEXT}; border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; font-size: 16px; }} QPushButton:hover {{ border: 1px solid {ACCENT}; background: rgba(0, 229, 255,0.08); }}")
+        self._voice_button.setStyleSheet(f"QPushButton {{ background: rgba(255, 255, 255, 0.02); color: {TEXT}; border: 1px solid rgba(255,255,255,0.06); border-radius: 14px; font-size: 16px; }} QPushButton:hover {{ border: 1px solid {ACCENT}; background: rgba(0, 229, 255,0.08); }}")
         self._voice_button.clicked.connect(self._toggle_voice_mode)
         row.addWidget(self._voice_button)
         lay.addLayout(row)
@@ -871,13 +871,13 @@ class JarvisHomePage(QWidget):
         header = QHBoxLayout()
         title = QLabel("MY DEVICES")
         title.setFont(QFont("Segoe UI", 13, QFont.Weight.Bold))
-        title.setStyleSheet(f"color: {TEXT}; letter-spacing: 1px;")
+        title.setStyleSheet(f"color: {TEXT};")
         header.addWidget(title)
         header.addStretch(1)
         self._add_btn = QPushButton("+ Add Device")
         self._add_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self._add_btn.setFixedHeight(38)
-        self._add_btn.setStyleSheet(f"QPushButton {{ background: transparent; color: {TEXT}; border: 1px solid {ACCENT}; border-radius: 12px; padding: 0 14px; }} QPushButton:hover {{ background: rgba(0, 229, 255,0.10); }}")
+        self._add_btn.setStyleSheet(f"QPushButton {{ background: transparent; color: {TEXT}; border: 1px solid {ACCENT}; border-radius: 14px; padding: 0 14px; }} QPushButton:hover {{ background: rgba(0, 229, 255,0.10); }}")
         self._add_btn.clicked.connect(self._open_add_device)
         header.addWidget(self._add_btn)
         lay.addLayout(header)
@@ -886,9 +886,9 @@ class JarvisHomePage(QWidget):
         self._empty_state.setObjectName("EmptyStateCard")
         self._empty_state.setStyleSheet(f"""
             QFrame#EmptyStateCard {{
-                background: rgba(10, 10, 10, 0.4);
+                background: rgba(10, 11, 16, 0.4);
                 border: 1px solid rgba(0, 229, 255, 0.4);
-                border-radius: 16px;
+                border-radius: 18px;
             }}
             QFrame#EmptyStateCard:hover {{
                 border: 1px solid rgba(0, 229, 255, 0.9);
@@ -908,7 +908,7 @@ class JarvisHomePage(QWidget):
         self._empty_add_btn = QPushButton("Add Device")
         self._empty_add_btn.setFixedSize(150, 42)
         self._empty_add_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self._empty_add_btn.setStyleSheet(f"QPushButton {{ background: rgba(0, 229, 255,0.12); color: {TEXT}; border: 1px solid {ACCENT}; border-radius: 12px; }} QPushButton:hover {{ background: rgba(0, 229, 255,0.18); }}")
+        self._empty_add_btn.setStyleSheet(f"QPushButton {{ background: rgba(0, 229, 255,0.12); color: {TEXT}; border: 1px solid {ACCENT}; border-radius: 14px; }} QPushButton:hover {{ background: rgba(0, 229, 255,0.18); }}")
         self._empty_add_btn.clicked.connect(self._open_add_device)
         empty_lay.addWidget(self._empty_add_btn, alignment=Qt.AlignmentFlag.AlignHCenter)
         lay.addWidget(self._empty_state)
@@ -931,9 +931,9 @@ class JarvisHomePage(QWidget):
         frame.setObjectName("VoiceControlCard")
         frame.setStyleSheet(f"""
             QFrame#VoiceControlCard {{
-                background: rgba(10, 10, 10, 0.4);
+                background: rgba(10, 11, 16, 0.4);
                 border: 1px solid rgba(0, 229, 255, 0.4);
-                border-radius: 16px;
+                border-radius: 18px;
             }}
             QFrame#VoiceControlCard:hover {{
                 border: 1px solid rgba(0, 229, 255, 0.9);
@@ -949,7 +949,7 @@ class JarvisHomePage(QWidget):
         
         title = QLabel("VOICE CONTROL")
         title.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
-        title.setStyleSheet(f"color: {TEXT}; letter-spacing: 1px;")
+        title.setStyleSheet(f"color: {TEXT};")
         left.addWidget(title)
         
         wake_lay = QVBoxLayout()
@@ -994,7 +994,7 @@ class JarvisHomePage(QWidget):
         drawer.setObjectName("DetailsDrawerFrame")
         drawer.setStyleSheet("""
             QFrame#DetailsDrawerFrame {
-                background: rgba(8, 9, 13, 0.88);
+                background: rgba(10, 11, 16, 0.88);
                 border: 1px solid rgba(255, 255, 255, 0.08);
                 border-radius: 20px;
             }
@@ -1020,9 +1020,9 @@ class JarvisHomePage(QWidget):
         
         card_style = """
             QFrame {
-                background: rgba(13, 15, 19, 235);
+                background: rgba(10, 11, 16, 235);
                 border: 1px solid rgba(255, 255, 255, 0.05);
-                border-radius: 14px;
+                border-radius: 16px;
             }
             QLabel {
                 background: transparent;
@@ -1131,14 +1131,14 @@ class JarvisHomePage(QWidget):
             <div style='line-height: 140%;'>
                 <span style='color: rgba(255,255,255,0.45); font-size: 10pt;'>Manufacturer:</span> <span style='color: #ffffff; font-weight: bold; font-size: 10pt;'>{device.get('manufacturer', '')}</span><br>
                 <span style='color: rgba(255,255,255,0.45); font-size: 10pt;'>Room:</span> <span style='color: #ffffff; font-weight: bold; font-size: 10pt;'>{device.get('room', '')}</span><br>
-                <span style='color: rgba(255,255,255,0.45); font-size: 10pt;'>Connection:</span> <span style='color: #35ff75; font-weight: bold; font-size: 10pt;'>Local</span><br>
+                <span style='color: rgba(255,255,255,0.45); font-size: 10pt;'>Connection:</span> <span style='color: #6ec1ff; font-weight: bold; font-size: 10pt;'>Local</span><br>
                 <span style='color: rgba(255,255,255,0.45); font-size: 10pt;'>Last Updated:</span> <span style='color: rgba(255,255,255,0.7); font-size: 10pt;'>now</span>
             </div>
         """)
         
         traits = device.get("traits") if isinstance(device.get("traits"), dict) else {}
         is_on = bool(device.get("is_on"))
-        state_color = "#35ff75" if is_on else "rgba(255,255,255,0.4)"
+        state_color = "#6ec1ff" if is_on else "rgba(255,255,255,0.4)"
         self._drawer_state.setText(f"""
             <div style='line-height: 140%;'>
                 <span style='color: rgba(255,255,255,0.45); font-size: 10pt;'>Power:</span> <span style='color: {state_color}; font-weight: bold; font-size: 10pt;'>{'On' if is_on else 'Off'}</span>
@@ -1170,7 +1170,7 @@ class JarvisHomePage(QWidget):
                     background: rgba(255,255,255,0.03);
                     color: {TEXT};
                     border: 1px solid rgba(255,255,255,0.08);
-                    border-radius: 8px;
+                    border-radius: 10px;
                     font-size: 11px;
                     font-weight: bold;
                     padding: 0 8px;
@@ -1220,7 +1220,7 @@ class JarvisHomePage(QWidget):
             status_html = (
                 "<div style='line-height: 1.3;'>"
                 "<span style='color: rgba(255,255,255,0.4); font-size: 10px; font-weight: bold;'>SYSTEM</span><br/>"
-                "<span style='color: #35ff75; font-size: 12px; font-weight: bold;'>●</span> "
+                "<span style='color: #6ec1ff; font-size: 12px; font-weight: bold;'>●</span> "
                 "<span style='color: #ffffff; font-size: 11px; font-weight: bold;'>Connected</span>"
                 "</div>"
             )
@@ -1228,7 +1228,7 @@ class JarvisHomePage(QWidget):
             status_html = (
                 "<div style='line-height: 1.3;'>"
                 "<span style='color: rgba(255,255,255,0.4); font-size: 10px; font-weight: bold;'>SYSTEM</span><br/>"
-                "<span style='color: #ffcc00; font-size: 12px; font-weight: bold;'>●</span> "
+                "<span style='color: #ff8a6b; font-size: 12px; font-weight: bold;'>●</span> "
                 "<span style='color: #ffffff; font-size: 11px; font-weight: bold;'>Ready</span>"
                 "</div>"
             )
@@ -1298,12 +1298,12 @@ class JarvisHomePage(QWidget):
             badge.setFont(QFont("Segoe UI", 11))
             
             badge_style = {
-                "fan": "background: rgba(53, 255, 117, 0.08); color: #35ff75; border: 1px solid rgba(53, 255, 117, 0.25); border-radius: 16px;",
-                "light": "background: rgba(255, 165, 0, 0.08); color: #ffa500; border: 1px solid rgba(255, 165, 0, 0.25); border-radius: 16px;",
-                "ac": "background: rgba(123, 211, 247, 0.08); color: #7bd3f7; border: 1px solid rgba(123, 211, 247, 0.25); border-radius: 16px;",
-                "tv": "background: rgba(0, 180, 216, 0.08); color: #00b4d8; border: 1px solid rgba(0, 180, 216, 0.25); border-radius: 16px;",
-                "plug": "background: rgba(255, 255, 255, 0.05); color: #ffffff; border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 16px;",
-            }.get(kind, "background: rgba(255, 255, 255, 0.05); color: #ffffff; border-radius: 16px;")
+                "fan": "background: rgba(53, 255, 117, 0.08); color: #6ec1ff; border: 1px solid rgba(53, 255, 117, 0.25); border-radius: 18px;",
+                "light": "background: rgba(255, 165, 0, 0.08); color: #ff8a6b; border: 1px solid rgba(255, 165, 0, 0.25); border-radius: 18px;",
+                "ac": "background: rgba(123, 211, 247, 0.08); color: #7bd3f7; border: 1px solid rgba(123, 211, 247, 0.25); border-radius: 18px;",
+                "tv": "background: rgba(0, 180, 216, 0.08); color: #00b4d8; border: 1px solid rgba(0, 180, 216, 0.25); border-radius: 18px;",
+                "plug": "background: rgba(255, 255, 255, 0.05); color: #ffffff; border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 18px;",
+            }.get(kind, "background: rgba(255, 255, 255, 0.05); color: #ffffff; border-radius: 18px;")
             badge.setStyleSheet(badge_style)
             box.addWidget(badge)
             
