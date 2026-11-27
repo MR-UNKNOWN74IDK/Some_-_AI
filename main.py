@@ -2456,6 +2456,20 @@ class JarvisLive:
         self._dashboard = dashboard if dashboard is not None else (DashboardServer() if (enable_dashboard and DashboardServer is not None) else None)
         self._dashboard_started = bool(dashboard_started and self._dashboard is not None)
         self.ui.on_text_command = self._on_text_command
+        # Pulse-ball controls: pause = stop talking, drag = voice volume
+        self._hushed = False
+        self._voice_gain = 1.0
+        try:
+            import json as _json
+            from core.user_paths import get_user_data_dir as _gud
+            _p = _gud() / "config" / "app_settings.json"
+            if _p.exists():
+                self._voice_gain = max(0.0, min(1.0, int(_json.loads(_p.read_text(encoding="utf-8")).get("voice_volume", 100)) / 100.0))
+        except Exception:
+            pass
+        self.ui.on_voice_volume = self._on_voice_volume
+        self.ui.on_voice_pause = self._on_voice_pause
+        self.ui.on_voice_stop = self._on_voice_stop
         try:
             from core import modes as _m5
             _m5.on_change(self._on_mode_changed)
@@ -5314,6 +5328,69 @@ class JarvisLive:
         elif not self.ui.muted:
             self.ui.set_state("LISTENING")
 
+    def _on_voice_volume(self, pct: int):
+        self._voice_gain = max(0.0, min(1.0, int(pct) / 100.0))
+
+    def _flush_output_now(self):
+        """Drop audio already handed to the sound card so speech stops mid-word, not at the next pause."""
+        self._flush_until = time.monotonic() + 0.8
+
+        def _do():
+            s = getattr(self, "_out_stream", None)
+            if s is None:
+                return
+            try:
+                s.abort()
+            except Exception:
+                pass
+            try:
+                s.start()
+            except Exception:
+                pass
+        threading.Thread(target=_do, daemon=True, name="jarvis-flush-audio").start()
+
+    def _cut_speech(self, source: str):
+        with self._speaking_lock:
+            self._is_speaking = False
+            self._server_turn_active = False
+            self._discard_server_audio = True
+            self._last_spoke_time = time.monotonic()
+        try:
+            if self.audio_in_queue:
+                while not self.audio_in_queue.empty():
+                    try:
+                        self.audio_in_queue.get_nowait()
+                    except Exception:
+                        break
+        except Exception:
+            pass
+        self._flush_output_now()
+        try:
+            from actions.attention_monitor import stop_native_speech
+            stop_native_speech()
+        except Exception:
+            pass
+        try:
+            from core.live_voice_engine import LiveVoiceEngine
+            LiveVoiceEngine.get_instance().trigger_interruption(source=source)
+        except Exception:
+            pass
+        try:
+            if not self.ui.muted:
+                self.ui.set_state("LISTENING")
+        except Exception:
+            pass
+
+    def _on_voice_stop(self):
+        """Tap on the ball: stop the current sentence right now (Jarvis may talk again next turn)."""
+        self._cut_speech("ball_tap")
+
+    def _on_voice_pause(self, paused: bool):
+        """Pause button: cut Jarvis off right now and keep it quiet until resumed."""
+        self._hushed = bool(paused)
+        if paused:
+            self._cut_speech("pause_button")
+
     def trigger_barge_in(self):
         """Immediately interrupts AI speech playback and switches state to LISTENING."""
         with self._speaking_lock:
@@ -5324,6 +5401,7 @@ class JarvisLive:
             self._discard_server_audio = True
             self._last_spoke_time = time.monotonic()
 
+        self._flush_output_now()
         try:
             from actions.attention_monitor import stop_native_speech
             stop_native_speech()
@@ -5366,6 +5444,9 @@ class JarvisLive:
         if getattr(self, "_in_live_tool", False):
             # Gemini Live duplex tool execution will vocalize completion via send_tool_response
             return
+
+        if getattr(self, "_hushed", False):
+            return  # paused from the pulse ball: show text only, say nothing
 
         if self.session and self._loop:
             # Route text through Gemini Live API for the unified native Charon voice
@@ -6820,6 +6901,7 @@ class JarvisLive:
             device=_spk_dev,
         )
         stream.start()
+        self._out_stream = stream
         try:
             while True:
                 try:
@@ -6833,7 +6915,7 @@ class JarvisLive:
                         self.set_speaking(False)
                     continue
 
-                if getattr(self, "_discard_server_audio", False):
+                if getattr(self, "_discard_server_audio", False) or getattr(self, "_hushed", False):
                     continue
 
                 if not self._is_speaking:
@@ -6849,11 +6931,29 @@ class JarvisLive:
                     LiveVoiceEngine.get_instance().broadcast_audio_chunk(chunk)
                 except Exception:
                     pass
-                await asyncio.to_thread(stream.write, chunk)
+                gain = getattr(self, "_voice_gain", 1.0)
+                if gain < 0.995:
+                    try:
+                        chunk = (np.frombuffer(chunk, dtype=np.int16).astype(np.float32) * gain).astype(np.int16).tobytes()
+                    except Exception:
+                        pass
+                try:
+                    await asyncio.to_thread(stream.write, chunk)
+                except Exception:
+                    # a write that was interrupted by "stop talking" is expected, anything else is not
+                    if time.monotonic() < getattr(self, "_flush_until", 0.0):
+                        try:
+                            if not stream.active:
+                                stream.start()
+                        except Exception:
+                            pass
+                        continue
+                    raise
         except Exception as e:
             print(f"[JARVIS] ❌ Play: {e}")
             raise
         finally:
+            self._out_stream = None
             self.set_speaking(False)
             stream.stop()
             stream.close()
